@@ -26,6 +26,12 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
 
+from sklearn.svm import SVC
+from sklearn.preprocessing import scale
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn import cross_validation, metrics
+
+
 from matplotlib.colors import ListedColormap
 cmap_light = ListedColormap(['#FFAAAA', '#AAFFAA', '#AAAAFF'])
 cmap_bold = ListedColormap(['#FF0000', '#00FF00', '#0000FF'])
@@ -102,6 +108,38 @@ def train_best(clf, parameters, indf, featurenames, targetname, standardize=Fals
     print ("Accuracy on training data: %0.2f" % (training_accuracy))
 ##    print ("Accuracy on test data:     %0.2f" % (test_accuracy))
     return clf
+
+
+
+def modelfit(alg, dtrain, predictors, target, performCV=True, printFeatureImportance=True, cv_folds=5):
+    #Fit the algorithm on the data
+    alg.fit(dtrain[predictors], dtrain[target])
+        
+    #Predict training set:
+    dtrain_predictions = alg.predict(dtrain[predictors])
+    dtrain_predprob = alg.predict_proba(dtrain[predictors])[:,1]
+    
+    #Perform cross-validation:
+    if performCV:
+        cv_score = cross_validation.cross_val_score(alg, dtrain[predictors], dtrain[target], cv=cv_folds, scoring='accuracy')
+    
+    #Print model report:
+    print ("\nModel Report")
+    print ("Accuracy : %.4g" % metrics.accuracy_score(dtrain[target].values, dtrain_predictions))
+    print ("AUC Score (Train): %f" % metrics.roc_auc_score(dtrain[target], dtrain_predprob))
+    
+    if performCV:
+        print ("CV Score : Mean - %.7g | Std - %.7g | Min - %.7g | Max - %.7g" % (np.mean(cv_score),np.std(cv_score),np.min(cv_score),np.max(cv_score)))
+        
+    #Print Feature Importance:
+    if printFeatureImportance:
+        feat_imp = pd.Series(alg.feature_importances_, predictors).sort_values(ascending=False)
+        feat_imp.plot(kind='bar', title='Feature Importances')
+        plt.ylabel('Feature Importance Score')
+        plt.show()
+        
+        
+    
 
 
 train = pd.read_csv("train_u6lujuX_CVtuZ9i.csv")
@@ -205,6 +243,12 @@ df['paidMonthlyTotalIncome_ratio_logs'] = df['LoanAmount_log']/df['Loan_Amount_T
 # categorical variables into numeric
 var_mod = ['Gender','Married','Dependents','Education','Self_Employed','Property_Area','Loan_Status']
 
+#for i in df.columns:
+#    if not i in var_mod+['Loan_ID', 'source']:
+#        df[i] = scale(df[i])
+#        
+
+
 le = LabelEncoder()
 for i in var_mod:
     df[i] = le.fit_transform(df[i])
@@ -214,25 +258,124 @@ print(df.dtypes)
 df_train = df[ df['source']== 'train' ]
 df_test = df[ df['source']== 'test' ]
 
-clf = LogisticRegression()
-parameters = {"C": [0.01, 0.1, 1, 10, 100]}
+
+# --------------------LogReg--------------------------------------
+#clf = LogisticRegression()
+#parameters = {"C": [0.01, 0.1, 1, 10, 100]}
+#predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
+#targetname = 'Loan_Status'
+#bestcv, Xtrain, ytrain, Xtest, ytest = do_classify(clf, parameters, df_train, predictors, targetname, standardize=False, train_size=0.7)
+#
+#
+## trening 
+#print('trening na celom sete')
+#
+#clf_best = train_best(clf, parameters, df_train, predictors, targetname, standardize=False)
+#
+#
+##Predict on testing data:
+#df_test['target'] = clf_best.predict(df_test[predictors])
+#df_test['target'] = df_test['target'].apply(lambda x: 'Y' if x==1 else 'N')
+#
+#submission = pd.DataFrame()
+#submission['Loan_ID'] = df_test['Loan_ID']
+#submission['Loan_Status'] = df_test['target']
+#submission.to_csv('submission_LogReg.csv', index=False)
+
+# --------------------SVM--------------------------------------
+#clf = clfsvm = SVC(kernel="linear")
+#parameters = {"C": [ 0.1, 1, 10]}
+##parameters = {"C":  [1.0]}
+#predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
+#targetname = 'Loan_Status'
+#bestcv, Xtrain, ytrain, Xtest, ytest = do_classify(clf, parameters, df_train, predictors, targetname, standardize=False, train_size=0.7)
+#
+#
+## trening 
+#print('trening na celom sete')
+#
+#clf_best = train_best(clf, parameters, df_train, predictors, targetname, standardize=False)
+#
+#
+##Predict on testing data:
+#df_test['target'] = clf_best.predict(df_test[predictors])
+#df_test['target'] = df_test['target'].apply(lambda x: 'Y' if x==1 else 'N')
+#
+#submission = pd.DataFrame()
+#submission['Loan_ID'] = df_test['Loan_ID']
+#submission['Loan_Status'] = df_test['target']
+#submission.to_csv('submission_SVM.csv', index=False)
+
+# --------------------GBM--------------------------------------
+clf = GradientBoostingClassifier()
 predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
 targetname = 'Loan_Status'
-bestcv, Xtrain, ytrain, Xtest, ytest = do_classify(clf, parameters, df_train, predictors, targetname, standardize=False, train_size=0.7)
+parameters = {'n_estimators':list(range(5,30,10))}
+
+#clf_best = train_best(clf, parameters, df_train, predictors, targetname, standardize=False)
 
 
-# trening 
-print('trening na celom sete')
+modelfit(clf, df_train, predictors, targetname, performCV=True, printFeatureImportance=True, cv_folds=5)
 
-clf_best = train_best(clf, parameters, df_train, predictors, targetname, standardize=False)
+# ideme zistovant number of trees. Ostatne sme zvolili predbezne a intuitivne.
+# n_jobs mi na tomto PC funguje len ked je 1
+
+# najlepsi je n_estimators=80
+#param_test1 = {'n_estimators':list(range(50,120,10))}
+#estimator = GradientBoostingClassifier(learning_rate=0.1, min_samples_split=2,min_samples_leaf=50,max_depth=8,max_features='sqrt',subsample=0.8,random_state=10)
+#gsearch1 = GridSearchCV(estimator = estimator, param_grid = param_test1,n_jobs=1,iid=False, cv=5)
+#gsearch1.fit(df_train[predictors],df_train[targetname])
+#print(gsearch1.grid_scores_, gsearch1.best_params_, gsearch1.best_score_)
 
 
-#Predict on testing data:
-df_test['target'] = clf_best.predict(df_test[predictors])
+# najlepsie je min_samples_split=1 a max_depth=6
+#param_test2 = {'max_depth':list(range(5,10,1)), 'min_samples_split':list(range(1,5,1))}
+#estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1, min_samples_leaf=50,max_features='sqrt',subsample=0.8,random_state=10)
+#gsearch2 = GridSearchCV(estimator = estimator, param_grid = param_test2,n_jobs=1,iid=False, cv=5)
+#gsearch2.fit(df_train[predictors],df_train[targetname])
+#print(gsearch2.grid_scores_, gsearch2.best_params_, gsearch2.best_score_)
+
+## najlepsie je min_samples_split=1 a min_samples_leaf=50
+#param_test3 = {'min_samples_split':list(range(1,5,1)), 'min_samples_leaf':list(range(30,71,10))}
+#estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1,max_depth=6,max_features='sqrt',subsample=0.8,random_state=10)
+#gsearch3 = GridSearchCV(estimator = estimator, param_grid = param_test3,n_jobs=1,iid=False, cv=5)
+#gsearch3.fit(df_train[predictors],df_train[targetname])
+#print(gsearch3.grid_scores_, gsearch3.best_params_, gsearch3.best_score_)
+
+
+# max_features=3
+#param_test4 = {'max_features':list(range(2,8,1))}
+#estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=50,subsample=0.8,random_state=10)
+#gsearch4 = GridSearchCV(estimator = estimator, param_grid = param_test4,n_jobs=1,iid=False, cv=5)
+#gsearch4.fit(df_train[predictors],df_train[targetname])
+#print(gsearch4.grid_scores_, gsearch4.best_params_, gsearch4.best_score_)
+
+
+# subsample = 0.9
+#param_test5 = {'subsample':[ 0.8, 0.85, 0.9, 0.95, 0.1]}
+#estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=50,random_state=10)
+#gsearch5 = GridSearchCV(estimator = estimator, param_grid = param_test5,n_jobs=1,iid=False, cv=5)
+#gsearch5.fit(df_train[predictors],df_train[targetname])
+#print(gsearch5.grid_scores_, gsearch5.best_params_, gsearch5.best_score_)
+
+
+
+estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=50, max_features=3,subsample=0.9,random_state=10)
+estimator.fit(df_train[predictors], df_train[targetname])
+df_test['target'] = estimator.predict(df_test[predictors])
+
+#
+#
+#
+#
+#
+#
+#
+##Predict on testing data:
+##df_test['target'] = clf_best.predict(df_test[predictors])
 df_test['target'] = df_test['target'].apply(lambda x: 'Y' if x==1 else 'N')
 
 submission = pd.DataFrame()
 submission['Loan_ID'] = df_test['Loan_ID']
 submission['Loan_Status'] = df_test['target']
-submission.to_csv('submission_LogReg.csv', index=False)
-
+submission.to_csv('submission_GBM.csv', index=False)
