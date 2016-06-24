@@ -253,11 +253,22 @@ le = LabelEncoder()
 for i in var_mod:
     df[i] = le.fit_transform(df[i])
 
+
+###One Hot Coding:
+##df = pd.get_dummies(df, columns=['Gender', 'Loan_Amount_Term'])
+
+
+
+
 print(df.dtypes)
 
 df_train = df[ df['source']== 'train' ]
 df_test = df[ df['source']== 'test' ]
 
+
+
+
+#  one-hot
 
 # --------------------LogReg--------------------------------------
 #clf = LogisticRegression()
@@ -307,15 +318,16 @@ df_test = df[ df['source']== 'test' ]
 #submission.to_csv('submission_SVM.csv', index=False)
 
 # --------------------GBM--------------------------------------
-clf = GradientBoostingClassifier()
-predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
+##clf = GradientBoostingClassifier()
+##predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
+predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source',] ]
 targetname = 'Loan_Status'
-parameters = {'n_estimators':list(range(5,30,10))}
+##parameters = {'n_estimators':list(range(5,30,10))}
 
 #clf_best = train_best(clf, parameters, df_train, predictors, targetname, standardize=False)
 
 
-modelfit(clf, df_train, predictors, targetname, performCV=True, printFeatureImportance=True, cv_folds=5)
+##modelfit(clf, df_train, predictors, targetname, performCV=True, printFeatureImportance=True, cv_folds=5)
 
 # ideme zistovant number of trees. Ostatne sme zvolili predbezne a intuitivne.
 # n_jobs mi na tomto PC funguje len ked je 1
@@ -358,11 +370,15 @@ modelfit(clf, df_train, predictors, targetname, performCV=True, printFeatureImpo
 #gsearch5.fit(df_train[predictors],df_train[targetname])
 #print(gsearch5.grid_scores_, gsearch5.best_params_, gsearch5.best_score_)
 
+##gbm_tuned_1 = GradientBoostingClassifier(learning_rate=0.05, n_estimators=160,max_depth=9, min_samples_split=1200,min_samples_leaf=60, subsample=0.85, random_state=10, max_features=7)
+##modelfit(gbm_tuned_1, train, predictors)
 
-
-estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=50, max_features=3,subsample=0.9,random_state=10)
+estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=50, max_features='sqrt',subsample=0.8, random_state=10)
 estimator.fit(df_train[predictors], df_train[targetname])
 df_test['target'] = estimator.predict(df_test[predictors])
+
+modelfit(estimator, df_train, predictors, targetname, performCV=True, printFeatureImportance=True, cv_folds=5)
+
 
 #
 #
