@@ -253,6 +253,9 @@ le = LabelEncoder()
 for i in var_mod:
     df[i] = le.fit_transform(df[i])
 
+# dodatocny feature engineering
+df['paidMonthlyTotalIncome_ratio_timesDeti'] = df['paidMonthlyTotalIncome_ratio']*df['Dependents']
+##df['paidMonthlyTotalIncome_ratio_timesDom'] = df['paidMonthlyTotalIncome_ratio']*(df['Education']+1)*(df['Married']+1)
 
 ###One Hot Coding:
 ##df = pd.get_dummies(df, columns=['Gender', 'Loan_Amount_Term'])
@@ -320,7 +323,7 @@ df_test = df[ df['source']== 'test' ]
 # --------------------GBM--------------------------------------
 ##clf = GradientBoostingClassifier()
 ##predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
-predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source',] ]
+predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
 targetname = 'Loan_Status'
 ##parameters = {'n_estimators':list(range(5,30,10))}
 
@@ -332,35 +335,35 @@ targetname = 'Loan_Status'
 # ideme zistovant number of trees. Ostatne sme zvolili predbezne a intuitivne.
 # n_jobs mi na tomto PC funguje len ked je 1
 
-# najlepsi je n_estimators=80
-#param_test1 = {'n_estimators':list(range(50,120,10))}
-#estimator = GradientBoostingClassifier(learning_rate=0.1, min_samples_split=2,min_samples_leaf=50,max_depth=8,max_features='sqrt',subsample=0.8,random_state=10)
-#gsearch1 = GridSearchCV(estimator = estimator, param_grid = param_test1,n_jobs=1,iid=False, cv=5)
-#gsearch1.fit(df_train[predictors],df_train[targetname])
-#print(gsearch1.grid_scores_, gsearch1.best_params_, gsearch1.best_score_)
+## najlepsi je n_estimators=80 (alternativa 90)
+##param_test1 = {'n_estimators':list(range(30,80,10))}
+##estimator = GradientBoostingClassifier(learning_rate=0.1, min_samples_split=1,min_samples_leaf=50,max_depth=8,max_features='sqrt',subsample=0.8,random_state=10)
+##gsearch1 = GridSearchCV(estimator = estimator, param_grid = param_test1,n_jobs=1,iid=False, cv=5)
+##gsearch1.fit(df_train[predictors],df_train[targetname])
+##print(gsearch1.grid_scores_, gsearch1.best_params_, gsearch1.best_score_)
 
 
-# najlepsie je min_samples_split=1 a max_depth=6
-#param_test2 = {'max_depth':list(range(5,10,1)), 'min_samples_split':list(range(1,5,1))}
-#estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1, min_samples_leaf=50,max_features='sqrt',subsample=0.8,random_state=10)
-#gsearch2 = GridSearchCV(estimator = estimator, param_grid = param_test2,n_jobs=1,iid=False, cv=5)
-#gsearch2.fit(df_train[predictors],df_train[targetname])
-#print(gsearch2.grid_scores_, gsearch2.best_params_, gsearch2.best_score_)
+# najlepsie je min_samples_split=1 a max_depth=6 (alter 1 a 5)
+##param_test2 = {'max_depth':list(range(2,7,1)), 'min_samples_split':list(range(1,5,1))}
+##estimator = GradientBoostingClassifier(n_estimators= 60, learning_rate=0.1, min_samples_leaf=50,max_features='sqrt',subsample=0.8,random_state=10)
+##gsearch2 = GridSearchCV(estimator = estimator, param_grid = param_test2,n_jobs=1,iid=False, cv=5)
+##gsearch2.fit(df_train[predictors],df_train[targetname])
+##print(gsearch2.grid_scores_, gsearch2.best_params_, gsearch2.best_score_)
 
 ## najlepsie je min_samples_split=1 a min_samples_leaf=50
-#param_test3 = {'min_samples_split':list(range(1,5,1)), 'min_samples_leaf':list(range(30,71,10))}
-#estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1,max_depth=6,max_features='sqrt',subsample=0.8,random_state=10)
-#gsearch3 = GridSearchCV(estimator = estimator, param_grid = param_test3,n_jobs=1,iid=False, cv=5)
-#gsearch3.fit(df_train[predictors],df_train[targetname])
-#print(gsearch3.grid_scores_, gsearch3.best_params_, gsearch3.best_score_)
+##param_test3 = {'min_samples_split':list(range(1,4,1)), 'min_samples_leaf':list(range(30,71,10))}
+##estimator = GradientBoostingClassifier(n_estimators= 60, learning_rate=0.1,max_depth=3,max_features='sqrt',subsample=0.8,random_state=10)
+##gsearch3 = GridSearchCV(estimator = estimator, param_grid = param_test3,n_jobs=1,iid=False, cv=5)
+##gsearch3.fit(df_train[predictors],df_train[targetname])
+##print(gsearch3.grid_scores_, gsearch3.best_params_, gsearch3.best_score_)
 
 
-# max_features=3
-#param_test4 = {'max_features':list(range(2,8,1))}
-#estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=50,subsample=0.8,random_state=10)
-#gsearch4 = GridSearchCV(estimator = estimator, param_grid = param_test4,n_jobs=1,iid=False, cv=5)
-#gsearch4.fit(df_train[predictors],df_train[targetname])
-#print(gsearch4.grid_scores_, gsearch4.best_params_, gsearch4.best_score_)
+# max_features=3 (alter. 5)
+##param_test4 = {'max_features':list(range(2,8,1))}
+##estimator = GradientBoostingClassifier(n_estimators= 60, learning_rate=0.1, min_samples_split=1, max_depth=3,min_samples_leaf=50,subsample=0.8,random_state=10)
+##gsearch4 = GridSearchCV(estimator = estimator, param_grid = param_test4,n_jobs=1,iid=False, cv=5)
+##gsearch4.fit(df_train[predictors],df_train[targetname])
+##print(gsearch4.grid_scores_, gsearch4.best_params_, gsearch4.best_score_)
 
 
 # subsample = 0.9
