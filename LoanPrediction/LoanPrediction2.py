@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 22 20:01:40 2016
+Created on Wed Jun 30 2016
 
 @author: Pablo
 
@@ -147,9 +147,11 @@ test = pd.read_csv("test_Y3wMUE5_7gLdaTN.csv")
 train['source']='train'
 test['source']='test'
 
+
 # vyhodenie doleziteho infa z training setu dost pohorsilo skore
-##train = train[ pd.notnull(train['LoanAmount']) ]
-##train = train[ pd.notnull(train['Loan_Amount_Term']) ]
+train = train[ pd.notnull(train['LoanAmount']) ]
+train = train[ pd.notnull(train['Loan_Amount_Term']) ]
+
 
 df = pd.concat([train, test], ignore_index=True)
 
@@ -180,10 +182,7 @@ df['Loan_Status'] = df['Loan_Status'].apply(lambda x: 1 if x=='Y' else 0)
 missed = df.apply(lambda x: sum(x.isnull()),axis=0)
 print(missed)
 
-# nahradenie NaN priemerom
-##df['LoanAmount'].fillna(df['LoanAmount'].mean(), inplace=True)
-
-# anmiesto NaN v LoanAmount idem doplnit mediany podla LoanAmount vo Education a Self_Employed, najprv ale doplnim NaN v nich.
+#### anmiesto NaN v LoanAmount idem doplnit mediany podla LoanAmount vo Education a Self_Employed, najprv ale doplnim NaN v nich.
 
 # kedze vacsina ludi nieje Self_Employed, tak za Nan doplnim NO
 ##df['Self_Employed'].value_counts()
@@ -197,7 +196,6 @@ def fage(x):
     return table.loc[x['Self_Employed'],x['Education']]
 
 # Replace missing values
-##df = df[ pd.notnull(df['LoanAmount']) ]
 df['LoanAmount'].fillna(df[df['LoanAmount'].isnull()].apply(fage, axis=1), inplace=True)
 
 
@@ -217,17 +215,16 @@ for col in categorical_columns:
 df['Gender'].fillna('Male',inplace=True)
 df['Married'].fillna('Yes',inplace=True)
 df['Dependents'].fillna('0',inplace=True)
-
 df['Loan_Amount_Term'].fillna(360,inplace=True)
-##df = df[ pd.notnull(df['Loan_Amount_Term']) ]
-
 # volim podla vyslednej pozicky, kedze tam je velka korelacia
 df['Credit_History'].fillna(df[df['Credit_History'].isnull()]['Loan_Status'], inplace=True)
 
-
+  
+    
+    
 # --------extreme values-----------
 # velke pozicky su mozne, tak namiesto vylucenia ako outlier rozdelenie zlogaritmujeme, aby sme znizili ich extremny vplyv.
-df['LoanAmount_log'] = np.log(df['LoanAmount'])
+##df['LoanAmount_log'] = np.log(df['LoanAmount'])
 
 # rozdelenie sa teraz podoba viac normalnemu
 ##df['LoanAmount_log'].hist(bins=20)
@@ -235,16 +232,16 @@ df['LoanAmount_log'] = np.log(df['LoanAmount'])
 
 # pre income sme spravili sucet ApplicantIncome a CoapplicantIncome a zlogaritmovali
 df['TotalIncome'] = df['ApplicantIncome'] + df['CoapplicantIncome']
-df['TotalIncome_log'] = np.log(df['TotalIncome'])
+##df['TotalIncome_log'] = np.log(df['TotalIncome'])
 ##df['LoanAmount_log'].hist(bins=20)
 ##plt.show()
 
 
 # --------------------------feature engineering------------
-df['LoanTotalIncome_ratio_logs'] = df['LoanAmount_log']/df['TotalIncome_log']
+##df['LoanTotalIncome_ratio_logs'] = df['LoanAmount_log']/df['TotalIncome_log']
 df['LoanTotalIncome_ratio'] = df['LoanAmount']/df['TotalIncome']
 df['paidMonthlyTotalIncome_ratio'] = df['LoanAmount']/df['Loan_Amount_Term']*1000/df['TotalIncome']
-df['paidMonthlyTotalIncome_ratio_logs'] = df['LoanAmount_log']/df['Loan_Amount_Term']*1000/df['TotalIncome_log']
+##df['paidMonthlyTotalIncome_ratio_logs'] = df['LoanAmount_log']/df['Loan_Amount_Term']*1000/df['TotalIncome_log']
 
 
 #----------------------------building model--------------------
@@ -262,12 +259,103 @@ for i in var_mod:
     df[i] = le.fit_transform(df[i])
 
 # dodatocny feature engineering
-df['paidMonthlyTotalIncome_ratio_timesDeti'] = df['paidMonthlyTotalIncome_ratio']*df['Dependents']
+df['paidMonthlyTotalIncome_ratio_timesDeti'] = df['paidMonthlyTotalIncome_ratio']*(df['Dependents']+1)
 ##df['paidMonthlyTotalIncome_ratio_timesDom'] = df['paidMonthlyTotalIncome_ratio']*(df['Education']+1)*(df['Married']+1)
 
 ###One Hot Coding:
 ##df = pd.get_dummies(df, columns=['Gender', 'Loan_Amount_Term'])
 
+
+def ranking(row):
+    score = 0
+    
+    paidMonthlyTotalIncome_ratio = row['paidMonthlyTotalIncome_ratio']
+    if paidMonthlyTotalIncome_ratio < 0.02:
+        point = 2
+    elif paidMonthlyTotalIncome_ratio < 0.04:
+        point = 1
+    elif paidMonthlyTotalIncome_ratio < 0.09:
+        point = 0
+    elif paidMonthlyTotalIncome_ratio < 0.4:
+        point = -1
+    elif paidMonthlyTotalIncome_ratio < 1.5:
+        point = -2
+    else:
+        point = -3
+    score = score + point
+
+    paidMonthlyTotalIncome_ratio_timesDeti = row['paidMonthlyTotalIncome_ratio_timesDeti']
+    if paidMonthlyTotalIncome_ratio_timesDeti < 0.015:
+        point = 2
+    elif paidMonthlyTotalIncome_ratio_timesDeti < 0.04:
+        point = 1
+    elif paidMonthlyTotalIncome_ratio_timesDeti < 0.10:
+        point = 0
+    elif paidMonthlyTotalIncome_ratio_timesDeti < 0.3:
+        point = -1
+    elif paidMonthlyTotalIncome_ratio_timesDeti < 2:
+        point = -2
+    else:
+        point = -3
+    score = score + point
+
+
+    TotalIncome = row['TotalIncome']
+    if TotalIncome < 4000:
+        point = -1
+    elif TotalIncome < 13000:
+        point = 0
+    else:
+        point = 1
+    score = score + point
+
+
+    Property_Area = row['Property_Area']
+    if Property_Area == 2:
+        point = 1
+    elif Property_Area == 1:
+        point = 0
+    else:
+        point = 1
+    score = score + point
+
+
+    Education = row['Education']
+    if Education == 1:
+        point = 1
+    else:
+        point = -1
+    score = score + point
+
+
+    Credit_History = row['Credit_History']
+    if Credit_History == 1:
+        point = 1
+    else:
+        point = -1
+    score = score + point
+
+
+    Married = row['Married']
+    if Married == 1:
+        point = 1
+    else:
+        point = 0
+    score = score + point
+
+
+    ApplicantIncome = row['ApplicantIncome']
+    if ApplicantIncome < 2000:
+        point = -1
+    elif ApplicantIncome < 10000:
+        point = 0
+    else:
+        point = 1
+    score = score + point
+    return score
+
+
+df['rank'] = df.apply(ranking, axis=1)
 
 
 
@@ -331,7 +419,7 @@ df_test = df[ df['source']== 'test' ]
 # --------------------GBM--------------------------------------
 ##clf = GradientBoostingClassifier()
 ##predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
-predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
+predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio_logs', 'paidMonthlyTotalIncome_ratio_logs', 'source'] ]
 targetname = 'Loan_Status'
 ##parameters = {'n_estimators':list(range(5,30,10))}
 
@@ -353,7 +441,7 @@ targetname = 'Loan_Status'
 
 # najlepsie je min_samples_split=1 a max_depth=6 (alter 1 a 5)
 ##param_test2 = {'max_depth':list(range(2,7,1)), 'min_samples_split':list(range(1,5,1))}
-##estimator = GradientBoostingClassifier(n_estimators= 60, learning_rate=0.1, min_samples_leaf=60,max_features='sqrt',subsample=0.8,random_state=10)
+##estimator = GradientBoostingClassifier(n_estimators= 60, learning_rate=0.1, min_samples_leaf=50,max_features='sqrt',subsample=0.8,random_state=10)
 ##gsearch2 = GridSearchCV(estimator = estimator, param_grid = param_test2,n_jobs=1,iid=False, cv=5)
 ##gsearch2.fit(df_train[predictors],df_train[targetname])
 ##print(gsearch2.grid_scores_, gsearch2.best_params_, gsearch2.best_score_)
