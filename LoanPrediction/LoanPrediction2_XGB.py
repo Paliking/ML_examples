@@ -30,9 +30,6 @@ from sklearn.svm import SVC
 from sklearn.preprocessing import scale
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn import cross_validation, metrics
-import xgboost as xgb
-from xgboost.sklearn import XGBClassifier
-
 
 
 from matplotlib.colors import ListedColormap
@@ -114,32 +111,32 @@ def train_best(clf, parameters, indf, featurenames, targetname, standardize=Fals
 
 
 
-def modelfit(alg, dtrain, predictors, target, performCV=True, printFeatureImportance=True, cv_folds=5):
-    #Fit the algorithm on the data
-    alg.fit(dtrain[predictors], dtrain[target])
+# def modelfit(alg, dtrain, predictors, target, performCV=True, printFeatureImportance=True, cv_folds=5):
+#     #Fit the algorithm on the data
+#     alg.fit(dtrain[predictors], dtrain[target])
         
-    #Predict training set:
-    dtrain_predictions = alg.predict(dtrain[predictors])
-    dtrain_predprob = alg.predict_proba(dtrain[predictors])[:,1]
+#     #Predict training set:
+#     dtrain_predictions = alg.predict(dtrain[predictors])
+#     dtrain_predprob = alg.predict_proba(dtrain[predictors])[:,1]
     
-    #Perform cross-validation:
-    if performCV:
-        cv_score = cross_validation.cross_val_score(alg, dtrain[predictors], dtrain[target], cv=cv_folds, scoring='accuracy')
+#     #Perform cross-validation:
+#     if performCV:
+#         cv_score = cross_validation.cross_val_score(alg, dtrain[predictors], dtrain[target], cv=cv_folds, scoring='accuracy')
     
-    #Print model report:
-    print ("\nModel Report")
-    print ("Accuracy : %.4g" % metrics.accuracy_score(dtrain[target].values, dtrain_predictions))
-    print ("AUC Score (Train): %f" % metrics.roc_auc_score(dtrain[target], dtrain_predprob))
+#     #Print model report:
+#     print ("\nModel Report")
+#     print ("Accuracy : %.4g" % metrics.accuracy_score(dtrain[target].values, dtrain_predictions))
+#     print ("AUC Score (Train): %f" % metrics.roc_auc_score(dtrain[target], dtrain_predprob))
     
-    if performCV:
-        print ("CV Score : Mean - %.7g | Std - %.7g | Min - %.7g | Max - %.7g" % (np.mean(cv_score),np.std(cv_score),np.min(cv_score),np.max(cv_score)))
+#     if performCV:
+#         print ("CV Score : Mean - %.7g | Std - %.7g | Min - %.7g | Max - %.7g" % (np.mean(cv_score),np.std(cv_score),np.min(cv_score),np.max(cv_score)))
         
-    #Print Feature Importance:
-    if printFeatureImportance:
-        feat_imp = pd.Series(alg.feature_importances_, predictors).sort_values(ascending=False)
-        feat_imp.plot(kind='bar', title='Feature Importances')
-        plt.ylabel('Feature Importance Score')
-        plt.show()
+#     #Print Feature Importance:
+#     if printFeatureImportance:
+#         feat_imp = pd.Series(alg.feature_importances_, predictors).sort_values(ascending=False)
+#         feat_imp.plot(kind='bar', title='Feature Importances')
+#         plt.ylabel('Feature Importance Score')
+#         plt.show()
         
         
     
@@ -372,27 +369,27 @@ df_test = df[ df['source']== 'test' ]
 #  one-hot
 
 # --------------------LogReg--------------------------------------
-clf = LogisticRegression()
-parameters = {"C": [0.01, 0.1, 1, 10, 100]}
-predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
-targetname = 'Loan_Status'
-bestcv, Xtrain, ytrain, Xtest, ytest = do_classify(clf, parameters, df_train, predictors, targetname, standardize=False, train_size=0.7)
-
-
-# trening 
-print('trening na celom sete')
-
-clf_best_lr = train_best(clf, parameters, df_train, predictors, targetname, standardize=False)
-
-
-# #Predict on testing data:
-# df_test['target'] = clf_best_lr.predict(df_test[predictors])
-# df_test['target'] = df_test['target'].apply(lambda x: 'Y' if x==1 else 'N')
-
-# submission = pd.DataFrame()
-# submission['Loan_ID'] = df_test['Loan_ID']
-# submission['Loan_Status'] = df_test['target']
-# submission.to_csv('submission_LogReg.csv', index=False)
+#clf = LogisticRegression()
+#parameters = {"C": [0.01, 0.1, 1, 10, 100]}
+#predictors = [ i for i in df.columns if not i in ['Loan_ID', 'Loan_Status', 'LoanTotalIncome_ratio', 'paidMonthlyTotalIncome_ratio', 'source'] ]
+#targetname = 'Loan_Status'
+#bestcv, Xtrain, ytrain, Xtest, ytest = do_classify(clf, parameters, df_train, predictors, targetname, standardize=False, train_size=0.7)
+#
+#
+## trening 
+#print('trening na celom sete')
+#
+#clf_best = train_best(clf, parameters, df_train, predictors, targetname, standardize=False)
+#
+#
+##Predict on testing data:
+#df_test['target'] = clf_best.predict(df_test[predictors])
+#df_test['target'] = df_test['target'].apply(lambda x: 'Y' if x==1 else 'N')
+#
+#submission = pd.DataFrame()
+#submission['Loan_ID'] = df_test['Loan_ID']
+#submission['Loan_Status'] = df_test['target']
+#submission.to_csv('submission_LogReg.csv', index=False)
 
 # --------------------SVM--------------------------------------
 #clf = clfsvm = SVC(kernel="linear")
@@ -433,7 +430,7 @@ targetname = 'Loan_Status'
 # ideme zistovant number of trees. Ostatne sme zvolili predbezne a intuitivne.
 # n_jobs mi na tomto PC funguje len ked je 1
 
-# # najlepsi je n_estimators=80 (alternativa 90)
+# najlepsi je n_estimators=80 (alternativa 90)
 # param_test1 = {'n_estimators':list(range(30,100,10))}
 # estimator = GradientBoostingClassifier(learning_rate=0.1, min_samples_split=1,min_samples_leaf=50,max_depth=8,max_features='sqrt',subsample=0.8,random_state=10)
 # gsearch1 = GridSearchCV(estimator = estimator, param_grid = param_test1,n_jobs=1,iid=False, cv=5)
@@ -441,16 +438,16 @@ targetname = 'Loan_Status'
 # print(gsearch1.grid_scores_, gsearch1.best_params_, gsearch1.best_score_)
 
 
-# # najlepsie je min_samples_split=1 a max_depth=6 (alter 1 a 5)
+# najlepsie je min_samples_split=1 a max_depth=6 (alter 1 a 5)
 # param_test2 = {'max_depth':list(range(2,7,1)), 'min_samples_split':list(range(1,5,1))}
 # estimator = GradientBoostingClassifier(n_estimators= 30, learning_rate=0.1, min_samples_leaf=50,max_features='sqrt',subsample=0.8,random_state=10)
 # gsearch2 = GridSearchCV(estimator = estimator, param_grid = param_test2,n_jobs=1,iid=False, cv=5)
 # gsearch2.fit(df_train[predictors],df_train[targetname])
 # print(gsearch2.grid_scores_, gsearch2.best_params_, gsearch2.best_score_)
 
-# # najlepsie je min_samples_split=1 a min_samples_leaf=50
+## najlepsie je min_samples_split=1 a min_samples_leaf=50
 # param_test3 = {'min_samples_split':list(range(1,4,1)), 'min_samples_leaf':list(range(30,71,10))}
-# estimator = GradientBoostingClassifier(n_estimators= 30, learning_rate=0.1,max_depth=6,max_features='sqrt',subsample=0.8,random_state=10)
+# estimator = GradientBoostingClassifier(n_estimators= 30, learning_rate=0.1,max_depth=3,max_features='sqrt',subsample=0.8,random_state=10)
 # gsearch3 = GridSearchCV(estimator = estimator, param_grid = param_test3,n_jobs=1,iid=False, cv=5)
 # gsearch3.fit(df_train[predictors],df_train[targetname])
 # print(gsearch3.grid_scores_, gsearch3.best_params_, gsearch3.best_score_)
@@ -458,18 +455,18 @@ targetname = 'Loan_Status'
 
 # max_features=3 (alter. 5)
 # param_test4 = {'max_features':list(range(2,8,1))}
-# estimator = GradientBoostingClassifier(n_estimators= 30, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=30,subsample=0.8,random_state=10)
+# estimator = GradientBoostingClassifier(n_estimators= 30, learning_rate=0.1, min_samples_split=1, max_depth=3,min_samples_leaf=50,subsample=0.8,random_state=10)
 # gsearch4 = GridSearchCV(estimator = estimator, param_grid = param_test4,n_jobs=1,iid=False, cv=5)
 # gsearch4.fit(df_train[predictors],df_train[targetname])
 # print(gsearch4.grid_scores_, gsearch4.best_params_, gsearch4.best_score_)
 
 
-# # # subsample = 0.9
-# param_test5 = {'subsample':[ 0.8, 0.85, 0.9, 0.95, 0.1]}
-# estimator = GradientBoostingClassifier(n_estimators= 30, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=30,random_state=10)
-# gsearch5 = GridSearchCV(estimator = estimator, param_grid = param_test5,n_jobs=1,iid=False, cv=5)
-# gsearch5.fit(df_train[predictors],df_train[targetname])
-# print(gsearch5.grid_scores_, gsearch5.best_params_, gsearch5.best_score_)
+# subsample = 0.9
+#param_test5 = {'subsample':[ 0.8, 0.85, 0.9, 0.95, 0.1]}
+#estimator = GradientBoostingClassifier(n_estimators= 80, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=50,random_state=10)
+#gsearch5 = GridSearchCV(estimator = estimator, param_grid = param_test5,n_jobs=1,iid=False, cv=5)
+#gsearch5.fit(df_train[predictors],df_train[targetname])
+#print(gsearch5.grid_scores_, gsearch5.best_params_, gsearch5.best_score_)
 
 ##gbm_tuned_1 = GradientBoostingClassifier(learning_rate=0.05, n_estimators=160,max_depth=9, min_samples_split=1200,min_samples_leaf=60, subsample=0.85, random_state=10, max_features=7)
 ##modelfit(gbm_tuned_1, train, predictors)
@@ -479,9 +476,6 @@ targetname = 'Loan_Status'
 
 # # estimator = GradientBoostingClassifier(n_estimators= 30, learning_rate=0.1, min_samples_split=1, max_depth=3,min_samples_leaf=50, max_features=4,subsample=0.8, random_state=10)
 # estimator = GradientBoostingClassifier(n_estimators= 100, learning_rate=0.1, min_samples_split=1, max_depth=5,min_samples_leaf=50, max_features='sqrt',subsample=0.8, random_state=10)
-
-
-
 
 # estimator.fit(df_train[predictors], df_train[targetname])
 # df_test['target'] = estimator.predict(df_test[predictors])
@@ -497,104 +491,195 @@ targetname = 'Loan_Status'
 
 
 
+# df_test['target'] = df_test['target'].apply(lambda x: 'Y' if x==1 else 'N')
 
-from sklearn.base import BaseEstimator
-from sklearn.base import ClassifierMixin
+# submission = pd.DataFrame()
+# submission['Loan_ID'] = df_test['Loan_ID']
+# submission['Loan_Status'] = df_test['target']
+# submission.to_csv('submission_GBM.csv', index=False)
+
+
+
+
+
+# XGB testing
+import pandas as pd
 import numpy as np
-import operator
-
-class EnsembleClassifier(BaseEstimator, ClassifierMixin):
-    """
-    Ensemble classifier for scikit-learn estimators.
-
-    Parameters
-    ----------
-
-    clf : `iterable`
-      A list of scikit-learn classifier objects.
-    weights : `list` (default: `None`)
-      If `None`, the majority rule voting will be applied to the predicted class labels.
-        If a list of weights (`float` or `int`) is provided, the averaged raw probabilities (via `predict_proba`)
-        will be used to determine the most confident class label.
-
-    """
-    def __init__(self, clfs, weights=None):
-        self.clfs = clfs
-        self.weights = weights
-
-    def fit(self, X, y):
-        """
-        Fit the scikit-learn estimators.
-
-        Parameters
-        ----------
-
-        X : numpy array, shape = [n_samples, n_features]
-            Training data
-        y : list or numpy array, shape = [n_samples]
-            Class labels
-
-        """
-        for clf in self.clfs:
-            clf.fit(X, y)
-
-    def predict(self, X):
-        """
-        Parameters
-        ----------
-
-        X : numpy array, shape = [n_samples, n_features]
-
-        Returns
-        ----------
-
-        maj : list or numpy array, shape = [n_samples]
-            Predicted class labels by majority rule
-
-        """
-
-        self.classes_ = np.asarray([clf.predict(X) for clf in self.clfs])
-        if self.weights:
-            avg = self.predict_proba(X)
-
-            maj = np.apply_along_axis(lambda x: max(enumerate(x), key=operator.itemgetter(1))[0], axis=1, arr=avg)
-
-        else:
-            maj = np.asarray([np.argmax(np.bincount(self.classes_[:,c])) for c in range(self.classes_.shape[1])])
-
-        return maj
-
-    def predict_proba(self, X):
-
-        """
-        Parameters
-        ----------
-
-        X : numpy array, shape = [n_samples, n_features]
-
-        Returns
-        ----------
-
-        avg : list or numpy array, shape = [n_samples, n_probabilities]
-            Weighted average probability for each class per sample.
-
-        """
-        self.probas_ = [clf.predict_proba(X) for clf in self.clfs]
-        avg = np.average(self.probas_, axis=0, weights=self.weights)
-
-        return avg
+import xgboost as xgb
+from xgboost.sklearn import XGBClassifier
+from sklearn import cross_validation, metrics   #Additional scklearn functions
+from sklearn.grid_search import GridSearchCV   #Perforing grid search
 
 
-# dosiahlo tiez top
-# estimator1 = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, min_samples_split=1, max_depth=5,min_samples_leaf=50, max_features='sqrt',subsample=0.8, random_state=10)
-# estimator2 = GradientBoostingClassifier(n_estimators=80, learning_rate=0.1, min_samples_split=1, max_depth=8,min_samples_leaf=70, max_features='sqrt',subsample=0.8, random_state=10)
-# estimator3 = GradientBoostingClassifier(n_estimators= 90, learning_rate=0.1, min_samples_split=1, max_depth=6,min_samples_leaf=100, max_features='sqrt',subsample=0.8, random_state=10)
+def modelfit(alg, dtrain, predictors, target, useTrainCV=True, cv_folds=5, early_stopping_rounds=50):
+    
+    if useTrainCV:
+        xgb_param = alg.get_xgb_params()
+        xgtrain = xgb.DMatrix(dtrain[predictors].values, label=dtrain[target].values)
+        cvresult = xgb.cv(xgb_param, xgtrain, num_boost_round=alg.get_params()['n_estimators'], nfold=cv_folds,
+            metrics='auc', early_stopping_rounds=early_stopping_rounds)
+        alg.set_params(n_estimators=cvresult.shape[0])
+    
+    #Fit the algorithm on the data
+    alg.fit(dtrain[predictors], dtrain[target],eval_metric='auc')
+        
+    #Predict training set:
+    dtrain_predictions = alg.predict(dtrain[predictors])
+    dtrain_predprob = alg.predict_proba(dtrain[predictors])[:,1]
+        
+    #Print model report:
+    print ("\nModel Report")
+    print ("Accuracy : %.4g" % metrics.accuracy_score(dtrain[target].values, dtrain_predictions))
+    print ("AUC Score (Train): %f" % metrics.roc_auc_score(dtrain[target], dtrain_predprob))
+                    
+    feat_imp = pd.Series(alg.booster().get_fscore()).sort_values(ascending=False)
+    feat_imp.plot(kind='bar', title='Feature Importances')
+    plt.ylabel('Feature Importance Score')
+    plt.show()
 
-estimator1 = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, min_samples_split=2, max_depth=5,min_samples_leaf=50, max_features='sqrt',subsample=0.8, random_state=10)
-estimator2 = GradientBoostingClassifier(n_estimators=80, learning_rate=0.1, min_samples_split=2, max_depth=8,min_samples_leaf=70, max_features='sqrt',subsample=0.8, random_state=10)
-estimator3 = GradientBoostingClassifier(n_estimators= 90, learning_rate=0.1, min_samples_split=2, max_depth=6,min_samples_leaf=100, max_features='sqrt',subsample=0.8, random_state=10)
-# estimator4 = GradientBoostingClassifier(n_estimators=30, learning_rate=0.1, min_samples_split=2, max_depth=6,min_samples_leaf=30, max_features='sqrt',subsample=0.8, random_state=10)
-# estimator5 = GradientBoostingClassifier(n_estimators= 120, learning_rate=0.1, min_samples_split=2, max_depth=8,min_samples_leaf=110, max_features='sqrt',subsample=0.8, random_state=10)
+
+
+
+# xgb1 = XGBClassifier(
+#  learning_rate =0.1,
+#  n_estimators=140,
+#  max_depth=5,
+#  min_child_weight=1,
+#  gamma=0,
+#  subsample=0.8,
+#  colsample_bytree=0.8,
+#  objective= 'binary:logistic',
+#  nthread=4,
+#  scale_pos_weight=1,
+#  seed=27)
+# modelfit(xgb1, df_train, predictors, targetname, early_stopping_rounds=50)
+
+
+# param_test1 = {
+#  'n_estimators':list(range(70,200,10)),
+
+# }
+# gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate =0.1, n_estimators=70, max_depth=5,
+#  min_child_weight=8, gamma=0, subsample=0.8, colsample_bytree=0.8,
+#  objective= 'binary:logistic', scale_pos_weight=1, seed=27), 
+#  param_grid = param_test1, scoring='accuracy',iid=False, cv=5)
+# gsearch1.fit(df_train[predictors],df_train[targetname])
+# print(gsearch1.grid_scores_), print(gsearch1.best_params_), print(gsearch1.best_score_)
+
+
+
+# param_test1 = {
+#  'max_depth':list(range(3,10,1)),
+#  'min_child_weight':list(range(2,10,1))
+# }
+# gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate =0.1, n_estimators=90, max_depth=5,
+#  min_child_weight=1, gamma=0, subsample=0.8, colsample_bytree=0.8,
+#  objective= 'binary:logistic', scale_pos_weight=1, seed=27), 
+#  param_grid = param_test1, scoring='accuracy',iid=False, cv=5)
+# gsearch1.fit(df_train[predictors],df_train[targetname])
+# print(gsearch1.grid_scores_), print(gsearch1.best_params_), print(gsearch1.best_score_)
+
+
+
+# param_test1 = {
+#  'gamma':[i/10.0 for i in range(0,5)]
+# }
+# gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate=0.1, n_estimators=70, max_depth=5,
+#  min_child_weight=8, gamma=0, subsample=0.8, colsample_bytree=0.8,
+#  objective= 'binary:logistic', scale_pos_weight=1, seed=27), 
+#  param_grid = param_test1, scoring='accuracy',iid=False, cv=5)
+# gsearch1.fit(df_train[predictors],df_train[targetname])
+# print(gsearch1.grid_scores_), print(gsearch1.best_params_), print(gsearch1.best_score_)
+
+
+# xgb1 = XGBClassifier(
+#  learning_rate =0.1,
+#  n_estimators=90,
+#  max_depth=6,
+#  min_child_weight=3,
+#  gamma=0,
+#  subsample=0.8,
+#  colsample_bytree=0.8,
+#  objective= 'binary:logistic',
+#  scale_pos_weight=1,
+#  seed=27)
+# modelfit(xgb1, df_train, predictors, targetname, early_stopping_rounds=50)
+
+
+
+
+# param_test1 = {
+#  'subsample':[i/10.0 for i in range(5,10)],
+#  'colsample_bytree':[i/10.0 for i in range(6,10)]
+# }
+# gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate =0.1, n_estimators=70, max_depth=5,
+#  min_child_weight=8, gamma=0.3, subsample=0.8, colsample_bytree=0.8,
+#  objective= 'binary:logistic', scale_pos_weight=1, seed=27), 
+#  param_grid = param_test1, scoring='accuracy',iid=False, cv=5)
+# gsearch1.fit(df_train[predictors],df_train[targetname])
+# print(gsearch1.grid_scores_), print(gsearch1.best_params_), print(gsearch1.best_score_)
+
+
+
+
+# param_test1 = {
+#  'reg_alpha':[1e-5, 1e-2, 0.1, 1, 100]
+# }
+# gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate =0.1, n_estimators=70, max_depth=5,
+#  min_child_weight=8, gamma=0.3, subsample=0.8, colsample_bytree=0.8,
+#  objective= 'binary:logistic', scale_pos_weight=1, seed=27), 
+#  param_grid = param_test1, scoring='accuracy',iid=False, cv=5)
+# gsearch1.fit(df_train[predictors],df_train[targetname])
+# print(gsearch1.grid_scores_), print(gsearch1.best_params_), print(gsearch1.best_score_)
+
+
+
+# xgb1 = XGBClassifier(
+#  learning_rate =0.1,
+#  n_estimators=90,
+#  max_depth=6,
+#  min_child_weight=3,
+#  gamma=0,
+#  subsample=0.6,
+#  colsample_bytree=0.7,
+#  objective= 'binary:logistic',
+#  scale_pos_weight=1,
+#  reg_alpha=0.1,
+#  seed=27)
+# modelfit(xgb1, df_train, predictors, targetname, early_stopping_rounds=50)
+
+
+
+# # nevypisuje mi v predoslom kroku optimalny n_estimators, preto to skusam zistovat takto.
+# param_test1 = {
+#  'n_estimators':list(range(50,150,10)),
+
+# }
+# gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate =0.01, n_estimators=700, max_depth=5,
+#  min_child_weight=8, gamma=0.3, subsample=0.8, colsample_bytree=0.8,
+#  objective= 'binary:logistic', scale_pos_weight=1, seed=27), 
+#  param_grid = param_test1, scoring='accuracy',iid=False, cv=5)
+# gsearch1.fit(df_train[predictors],df_train[targetname])
+# print(gsearch1.grid_scores_), print(gsearch1.best_params_), print(gsearch1.best_score_)
+
+
+
+
+# xgb1 = XGBClassifier(
+#  learning_rate =0.01,
+#  n_estimators=5000,
+#  max_depth=6,
+#  min_child_weight=3,
+#  gamma=0,
+#  subsample=0.6,
+#  colsample_bytree=0.7,
+#  objective= 'binary:logistic',
+#  scale_pos_weight=1,
+#  reg_alpha=0.1,
+#  seed=27)
+# modelfit(xgb1, df_train, predictors, targetname, early_stopping_rounds=50)
+
+
 xgb1 = XGBClassifier(
  learning_rate=0.01,
  n_estimators=700,
@@ -608,44 +693,11 @@ xgb1 = XGBClassifier(
  seed=27)
 
 
-# trva dlho ked tam je viac estimatorov
-# df = pd.DataFrame(columns=('w1', 'w2', 'w3', 'w4', 'mean', 'std'))
 
-# i = 0
-# for w1 in range(1,3):
-#     for w2 in range(1,3):
-#         for w3 in range(1,3):
-#             for w4 in range(1,3):
-
-#                 if len(set((w1,w2,w3,w4))) == 1: # skip if all weights are equal
-#                     continue
-
-#                 eclf = EnsembleClassifier(clfs=[estimator1, estimator2, estimator3, xgb1], weights=[w1,w2,w3,w4])
-#                 scores = cross_validation.cross_val_score(
-#                                                 estimator=eclf,
-#                                                 X=df_train[predictors],
-#                                                 y=df_train[targetname],
-#                                                 cv=5,
-#                                                 scoring='accuracy',
-#                                                 n_jobs=1)
-
-#                 df.loc[i] = [w1, w2, w3, w4, scores.mean(), scores.std()]
-#                 i += 1
-
-# print(df.sort(columns=['mean', 'std'], ascending=False))
+xgb1.fit(df_train[predictors], df_train[targetname])
+df_test['target'] = xgb1.predict(df_test[predictors])
 
 
-# estimator = EnsembleClassifier(clfs=[estimator1, estimator2, estimator3, estimator4, estimator5], weights=[1,1,1,1,1])
-# estimator = EnsembleClassifier(clfs=[estimator1, estimator2, estimator3, clf_best_lr, xgb1], weights=[1,1,1,1, 1])
-estimator = EnsembleClassifier(clfs=[estimator1, estimator2, clf_best_lr, xgb1], weights=[1,1,1,2])
-
-estimator.fit(df_train[predictors], df_train[targetname])
-df_test['target'] = estimator.predict(df_test[predictors])
-
-
-for clf, label in zip([estimator1, estimator2, clf_best_lr, xgb1, estimator], ['es1', 'es2', 'es3', 'xgb', 'Ensemble']):
-    scores = cross_validation.cross_val_score(clf, df_train[predictors], df_train[targetname], cv=5, scoring='accuracy')
-    print("Accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), label))
 
 
 df_test['target'] = df_test['target'].apply(lambda x: 'Y' if x==1 else 'N')
@@ -653,4 +705,4 @@ df_test['target'] = df_test['target'].apply(lambda x: 'Y' if x==1 else 'N')
 submission = pd.DataFrame()
 submission['Loan_ID'] = df_test['Loan_ID']
 submission['Loan_Status'] = df_test['target']
-submission.to_csv('submission_combo.csv', index=False)
+submission.to_csv('submission_XGB_retunned.csv', index=False)
