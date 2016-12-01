@@ -5,7 +5,8 @@ import os
 from sklearn import preprocessing, ensemble
 
 # columns to be used as features #
-#feature_cols = ["ind_empleado","pais_residencia","sexo","age","ind_nuevo","antiguedad","indrel","ult_fec_cli_1t","indrel_1mes","tiprel_1mes","indresi","indext","conyuemp","canal_entrada","indfall","tipodom","cod_prov","nomprov","ind_actividad_cliente","renta","segmento"]
+# feature_cols = ["ind_empleado","pais_residencia","sexo","age","ind_nuevo","antiguedad","indrel","ult_fec_cli_1t","indrel_1mes","tiprel_1mes","indresi","indext","conyuemp","canal_entrada","indfall","tipodom","cod_prov","nomprov","ind_actividad_cliente","renta","segmento"]
+# best 
 feature_cols = ["ind_empleado","pais_residencia","sexo","age", "ind_nuevo", "antiguedad", "nomprov", "segmento", "ind_actividad_cliente", "indresi"]
 # feature_cols = ["ind_empleado","pais_residencia","sexo","age"]
 # feature_cols = ["ind_empleado","pais_residencia"]
@@ -20,6 +21,7 @@ data_dir = os.path.join(root_dir, 'data_examples', 'SantanderReco')
 train_file = os.path.join(data_dir, "train_ver2.csv")
 test_file = os.path.join(data_dir, "test_ver2.csv")
 train_size = 13647309
+# 5 melonov nepomohlo
 nrows = 1000000 # change this value to read more rows from train
 
 start_index = train_size - nrows	
@@ -27,6 +29,9 @@ for ind, col in enumerate(feature_cols):
 	print(col)
 	train = pd.read_csv(train_file, usecols=[col])
 	test = pd.read_csv(test_file, usecols=[col])
+	if col == 'renta':
+		train = train.replace('         NA', -99)
+		test = test.replace('         NA', -99)
 	train.fillna(-99, inplace=True)
 	test.fillna(-99, inplace=True)
 
@@ -95,6 +100,6 @@ for ind, pred in enumerate(preds):
 			break
 	final_preds.append(" ".join(new_top_products))
 out_df = pd.DataFrame({'ncodpers':test_id, 'added_products':final_preds})
-out_df.to_csv('sub_rf.csv', index=False)			
+out_df.to_csv('sub_rf2.csv', index=False)			
 
 
