@@ -8,7 +8,8 @@ from keras.layers.core import Dense, Activation, Merge, Reshape, Dropout
 from keras.layers.embeddings import Embedding
 from keras.optimizers import SGD
 from keras.layers.normalization import BatchNormalization
-import cPickle as pkl
+import os
+
 
 np.random.seed(12345)
 
@@ -35,7 +36,7 @@ mapping_dict = {
 dtype_list = {'ind_cco_fin_ult1': 'float16', 'ind_deme_fin_ult1': 'float16', 'ind_aval_fin_ult1': 'float16', 'ind_valo_fin_ult1': 'float16', 'ind_reca_fin_ult1': 'float16', 'ind_ctju_fin_ult1': 'float16', 'ind_cder_fin_ult1': 'float16', 'ind_plan_fin_ult1': 'float16', 'ind_fond_fin_ult1': 'float16', 'ind_hip_fin_ult1': 'float16', 'ind_pres_fin_ult1': 'float16', 'ind_nomina_ult1': 'float16', 'ind_cno_fin_ult1': 'float16', 'ncodpers': 'int64', 'ind_ctpp_fin_ult1': 'float16', 'ind_ahor_fin_ult1': 'float16', 'ind_dela_fin_ult1': 'float16', 'ind_ecue_fin_ult1': 'float16', 'ind_nom_pens_ult1': 'float16', 'ind_recibo_ult1': 'float16', 'ind_deco_fin_ult1': 'float16', 'ind_tjcr_fin_ult1': 'float16', 'ind_ctop_fin_ult1': 'float16', 'ind_viv_fin_ult1': 'float16', 'ind_ctma_fin_ult1': 'float16'}
 
 # categorical columns to use #
-cols_to_use = mapping_dict.keys()
+cols_to_use = list(mapping_dict.keys())
 print(cols_to_use)
 
 # target columns to predict #
@@ -47,7 +48,7 @@ ohes = []
 feat_count = 0
 for col in cols_to_use:
 	ohe = preprocessing.OneHotEncoder()
-	ohe.fit(np.array(mapping_dict[col].values()).reshape(-1,1))
+	ohe.fit(np.array(list(mapping_dict[col].values())).reshape(-1,1))
 	feat_count += ohe.n_values_[0]
 	print(col, feat_count)
 	ohes.append(ohe)
@@ -104,8 +105,10 @@ def keras_embedding_model():
 	return final_model
 
 if __name__ == "__main__":
-	train = "../input/train_ver2.csv"
-	test = "../input/test_ver2.csv"
+	root_dir = os.path.abspath('../..')
+	data_dir = os.path.join(root_dir, 'data_examples', 'SantanderReco')
+	train = os.path.join(data_dir, "train_ver2.csv")
+	test = os.path.join(data_dir, "test_ver2.csv")
 	#train_size = 13647309
 	train_size = 1000000
 	test_size = 929615
