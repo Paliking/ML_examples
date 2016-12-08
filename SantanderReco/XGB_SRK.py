@@ -40,183 +40,217 @@ target_cols = target_cols[2:]
 
 # encode values
 def getTarget(row):
-	tlist = []
-	for col in target_cols:
-		if row[col].strip() in ['', 'NA']:
-			target = 0
-		else:
-			target = int(float(row[col]))
-		tlist.append(target)
-	return tlist
+    tlist = []
+    for col in target_cols:
+        if row[col].strip() in ['', 'NA']:
+            target = 0
+        else:
+            target = int(float(row[col]))
+        tlist.append(target)
+    return tlist
 
 def getIndex(row, col):
-	val = row[col].strip()
-	if val not in ['','NA']:
-		ind = mapping_dict[col][val]
-	else:
-		ind = mapping_dict[col][-99]
-	return ind
+    val = row[col].strip()
+    if val not in ['','NA']:
+        ind = mapping_dict[col][val]
+    else:
+        ind = mapping_dict[col][-99]
+    return ind
 
 def getAge(row):
-	mean_age = 40.
-	min_age = 20.
-	max_age = 90.
-	range_age = max_age - min_age
-	age = row['age'].strip()
-	if age == 'NA' or age == '':
-		age = mean_age
-	else:
-		age = float(age)
-		if age < min_age:
-			age = min_age
-		elif age > max_age:
-			age = max_age
-	return round( (age - min_age) / range_age, 4)
+    mean_age = 40.
+    min_age = 20.
+    max_age = 90.
+    range_age = max_age - min_age
+    age = row['age'].strip()
+    if age == 'NA' or age == '':
+        age = mean_age
+    else:
+        age = float(age)
+        if age < min_age:
+            age = min_age
+        elif age > max_age:
+            age = max_age
+    return round( (age - min_age) / range_age, 4)
 
 def getCustSeniority(row):
-	min_value = 0.
-	max_value = 256.
-	range_value = max_value - min_value
-	missing_value = 0.
-	cust_seniority = row['antiguedad'].strip()
-	if cust_seniority == 'NA' or cust_seniority == '':
-		cust_seniority = missing_value
-	else:
-		cust_seniority = float(cust_seniority)
-		if cust_seniority < min_value:
-			cust_seniority = min_value
-		elif cust_seniority > max_value:
-			cust_seniority = max_value
-	return round((cust_seniority-min_value) / range_value, 4)
+    min_value = 0.
+    max_value = 256.
+    range_value = max_value - min_value
+    missing_value = 0.
+    cust_seniority = row['antiguedad'].strip()
+    if cust_seniority == 'NA' or cust_seniority == '':
+        cust_seniority = missing_value
+    else:
+        cust_seniority = float(cust_seniority)
+        if cust_seniority < min_value:
+            cust_seniority = min_value
+        elif cust_seniority > max_value:
+            cust_seniority = max_value
+    return round((cust_seniority-min_value) / range_value, 4)
 
 def getRent(row):
-	min_value = 0.
-	max_value = 1500000.
-	range_value = max_value - min_value
-	missing_value = 101850.
-	rent = row['renta'].strip()
-	if rent == 'NA' or rent == '':
-		rent = missing_value
-	else:
-		rent = float(rent)
-		if rent < min_value:
-			rent = min_value
-		elif rent > max_value:
-			rent = max_value
-	return round((rent-min_value) / range_value, 6)
+    min_value = 0.
+    max_value = 1500000.
+    range_value = max_value - min_value
+    missing_value = 101850.
+    rent = row['renta'].strip()
+    if rent == 'NA' or rent == '':
+        rent = missing_value
+    else:
+        rent = float(rent)
+        if rent < min_value:
+            rent = min_value
+        elif rent > max_value:
+            rent = max_value
+    return round((rent-min_value) / range_value, 6)
 
 
-def processData(in_file_name, cust_dict, cust_dict_04):
-	'''
-	creates X and y for training and X for predicting.
-	'''
-	x_vars_list = []
-	y_vars_list = []
-	# read line by line
-	for row in csv.DictReader(in_file_name):
-		# use only the these months
-		if row['fecha_dato'] not in ['2015-04-28', '2016-04-28', '2015-05-28', '2015-06-28', '2016-05-28', '2016-06-28']:
-			continue
+def processData(in_file_name, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12):
+    '''
+    creates X and y for training and X for predicting.
+    '''
+    x_vars_list = []
+    y_vars_list = []
+    # read line by line
+    for row in csv.DictReader(in_file_name):
+        # use only the these months
+        if row['fecha_dato'] not in ['2015-01-28', '2016-01-28', '2015-02-28', '2016-02-28', '2015-03-28', 
+                                    '2016-03-28', '2015-04-28', '2014-12-28', '2015-12-28',
+                                    '2016-04-28', '2015-05-28', '2015-06-28', '2016-05-28', '2016-06-28']:
+            continue
 
-		# get target list for may
-		cust_id = int(row['ncodpers'])
-		if row['fecha_dato'] in ['2015-05-28', '2016-05-28']:	
-			target_list = getTarget(row)
-			cust_dict[cust_id] =  target_list[:]
-			continue
+        # get target list for may
+        cust_id = int(row['ncodpers'])
+        if row['fecha_dato'] in ['2015-05-28', '2016-05-28']:   
+            target_list = getTarget(row)
+            cust_dict[cust_id] =  target_list[:]
+            continue
 
-		# get target list for april
-		if row['fecha_dato'] in ['2015-04-28', '2016-04-28']:	
-			target_list = getTarget(row)
-			cust_dict_04[cust_id] =  target_list[:]
-			continue
+        # get target list for april
+        if row['fecha_dato'] in ['2015-04-28', '2016-04-28']:   
+            target_list = getTarget(row)
+            cust_dict_04[cust_id] =  target_list[:]
+            continue
 
-		# include cleaned predictors in X
-		x_vars = []
-		for col in cat_cols:
-			x_vars.append( getIndex(row, col) )
-		x_vars.append( getAge(row) )
-		x_vars.append( getCustSeniority(row) )
-		x_vars.append( getRent(row) )
+        # get target list for March
+        if row['fecha_dato'] in ['2015-03-28', '2016-03-28']:   
+            target_list = getTarget(row)
+            cust_dict_03[cust_id] =  target_list[:]
+            continue
 
-		# for real prediction get only X
-		if row['fecha_dato'] == '2016-06-28':
-			prev_target_list = cust_dict.get(cust_id, [0]*22)
-			prev_target_list_04 = cust_dict_04.get(cust_id, [0]*22)
-			x_vars_list.append(x_vars + prev_target_list + prev_target_list_04)
-		# for training set get X and y too
-		elif row['fecha_dato'] == '2015-06-28':
-			prev_target_list = cust_dict.get(cust_id, [0]*22)
-			prev_target_list_04 = cust_dict_04.get(cust_id, [0]*22)
-			target_list = getTarget(row)
-			new_products = [max(x1 - x2,0) for (x1, x2) in zip(target_list, prev_target_list)]
-			if sum(new_products) > 0:
-				# when customer has more new products, the same line is duplicated with other target variable
-				for ind, prod in enumerate(new_products):
-					if prod>0:
-						assert len(prev_target_list) == 22
-						x_vars_list.append(x_vars+prev_target_list+prev_target_list_04)
-						y_vars_list.append(ind)
+        # get target list for Feb
+        if row['fecha_dato'] in ['2015-02-28', '2016-02-28']:   
+            target_list = getTarget(row)
+            cust_dict_02[cust_id] =  target_list[:]
+            continue
 
-	return x_vars_list, y_vars_list, cust_dict, cust_dict_04
-			
+        # get target list for Jan
+        if row['fecha_dato'] in ['2015-01-28', '2016-01-28']:   
+            target_list = getTarget(row)
+            cust_dict_01[cust_id] =  target_list[:]
+            continue
+
+        # get target list for dec
+        if row['fecha_dato'] in ['2014-12-28', '2015-12-28']:   
+            target_list = getTarget(row)
+            cust_dict_12[cust_id] =  target_list[:]
+            continue
+
+        # include cleaned predictors in X
+        x_vars = []
+        for col in cat_cols:
+            x_vars.append( getIndex(row, col) )
+        x_vars.append( getAge(row) )
+        x_vars.append( getCustSeniority(row) )
+        x_vars.append( getRent(row) )
+
+        # for real prediction get only X
+        if row['fecha_dato'] == '2016-06-28':
+            prev_target_list = cust_dict.get(cust_id, [0]*22)
+            prev_target_list_04 = cust_dict_04.get(cust_id, [0]*22)
+            prev_target_list_03 = cust_dict_03.get(cust_id, [0]*22)
+            prev_target_list_02 = cust_dict_02.get(cust_id, [0]*22)
+            prev_target_list_01 = cust_dict_01.get(cust_id, [0]*22)
+            prev_target_list_12 = cust_dict_12.get(cust_id, [0]*22)
+            x_vars_list.append(x_vars + prev_target_list + prev_target_list_04 + prev_target_list_03 + prev_target_list_02 + prev_target_list_01 + prev_target_list_12)
+        # for training set get X and y too
+        elif row['fecha_dato'] == '2015-06-28':
+            prev_target_list = cust_dict.get(cust_id, [0]*22)
+            prev_target_list_04 = cust_dict_04.get(cust_id, [0]*22)
+            prev_target_list_03 = cust_dict_03.get(cust_id, [0]*22)
+            prev_target_list_02 = cust_dict_02.get(cust_id, [0]*22)
+            prev_target_list_01 = cust_dict_01.get(cust_id, [0]*22)
+            prev_target_list_12 = cust_dict_12.get(cust_id, [0]*22)
+            target_list = getTarget(row)
+            new_products = [max(x1 - x2,0) for (x1, x2) in zip(target_list, prev_target_list)]
+            if sum(new_products) > 0:
+                # when customer has more new products, the same line is duplicated with other target variable
+                for ind, prod in enumerate(new_products):
+                    if prod>0:
+                        assert len(prev_target_list) == 22
+                        x_vars_list.append(x_vars+prev_target_list+prev_target_list_04+prev_target_list_03+prev_target_list_02+prev_target_list_01+prev_target_list_12)
+                        y_vars_list.append(ind)
+
+    return x_vars_list, y_vars_list, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12
+            
 def runXGB(train_X, train_y, seed_val=0):
-	param = {}
-	param['objective'] = 'multi:softprob'
-	param['eta'] = 0.05
-	param['max_depth'] = 9
-	param['silent'] = 1
-	param['num_class'] = 22
-	param['eval_metric'] = "mlogloss"
-	param['min_child_weight'] = 1
-	param['subsample'] = 0.7
-	param['colsample_bytree'] = 0.7
-	param['seed'] = seed_val
-	num_rounds = 50
+    param = {}
+    param['objective'] = 'multi:softprob'
+    param['eta'] = 0.05
+    param['max_depth'] = 9
+    param['silent'] = 1
+    param['num_class'] = 22
+    param['eval_metric'] = "mlogloss"
+    param['min_child_weight'] = 1
+    param['subsample'] = 0.7
+    param['colsample_bytree'] = 0.7
+    param['seed'] = seed_val
+    num_rounds = 50
 
-	plst = list(param.items())
-	xgtrain = xgb.DMatrix(train_X, label=train_y)
-	model = xgb.train(plst, xgtrain, num_rounds)	
-	return model
+    plst = list(param.items())
+    xgtrain = xgb.DMatrix(train_X, label=train_y)
+    model = xgb.train(plst, xgtrain, num_rounds)    
+    return model
 
 
 if __name__ == "__main__":
-	start_time = datetime.datetime.now()
-	root_dir = os.path.abspath('../..')
-	data_dir = os.path.join(root_dir, 'data_examples', 'SantanderReco')
-	data_path = data_dir + '/'
-	train_file =  open(data_path + "train_ver2.csv")
-	x_vars_list, y_vars_list, cust_dict, cust_dict_04 = processData(train_file, {}, {})
-	train_X = np.array(x_vars_list)
-	train_y = np.array(y_vars_list)
-	print(np.unique(train_y))
-	del x_vars_list, y_vars_list
-	train_file.close()
-	print(train_X.shape, train_y.shape)
-	print(datetime.datetime.now()-start_time)
-	test_file = open(data_path + "test_ver2.csv")
-	x_vars_list, y_vars_list, cust_dict, cust_dict_04 = processData(test_file, cust_dict, cust_dict_04)
-	test_X = np.array(x_vars_list)
-	del x_vars_list
-	test_file.close()
-	print(test_X.shape)
-	print(datetime.datetime.now()-start_time)
+    start_time = datetime.datetime.now()
+    root_dir = os.path.abspath('../..')
+    data_dir = os.path.join(root_dir, 'data_examples', 'SantanderReco')
+    data_path = data_dir + '/'
+    train_file =  open(data_path + "train_ver2.csv")
+    x_vars_list, y_vars_list, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12 = processData(train_file, {}, {}, {}, {}, {}, {})
+    train_X = np.array(x_vars_list)
+    train_y = np.array(y_vars_list)
+    print(np.unique(train_y))
+    del x_vars_list, y_vars_list
+    train_file.close()
+    print(train_X.shape, train_y.shape)
+    print(datetime.datetime.now()-start_time)
+    test_file = open(data_path + "test_ver2.csv")
+    x_vars_list, y_vars_list, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12 = processData(test_file, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12)
+    test_X = np.array(x_vars_list)
+    del x_vars_list
+    test_file.close()
+    print(test_X.shape)
+    print(datetime.datetime.now()-start_time)
 
-	print("Building model..")
-	model = runXGB(train_X, train_y, seed_val=15)
-	del train_X, train_y
-	print("Predicting..")
-	xgtest = xgb.DMatrix(test_X)
-	preds = model.predict(xgtest)
-	del test_X, xgtest
-	print(datetime.datetime.now()-start_time)
+    print("Building model..")
+    model = runXGB(train_X, train_y, seed_val=15)
+    del train_X, train_y
+    print("Predicting..")
+    xgtest = xgb.DMatrix(test_X)
+    preds = model.predict(xgtest)
+    del test_X, xgtest
+    print(datetime.datetime.now()-start_time)
 
-	print("Getting the top products..")
-	target_cols = np.array(target_cols)
-	preds = np.argsort(preds, axis=1)
-	preds = np.fliplr(preds)[:,:7]
-	test_id = np.array(pd.read_csv(data_path + "test_ver2.csv", usecols=['ncodpers'])['ncodpers'])
-	final_preds = [" ".join(list(target_cols[pred])) for pred in preds]
-	out_df = pd.DataFrame({'ncodpers':test_id, 'added_products':final_preds})
-	out_df.to_csv('sub_xgb_new5.csv', index=False)
-	print(datetime.datetime.now()-start_time)
+    print("Getting the top products..")
+    target_cols = np.array(target_cols)
+    preds = np.argsort(preds, axis=1)
+    preds = np.fliplr(preds)[:,:7]
+    test_id = np.array(pd.read_csv(data_path + "test_ver2.csv", usecols=['ncodpers'])['ncodpers'])
+    final_preds = [" ".join(list(target_cols[pred])) for pred in preds]
+    out_df = pd.DataFrame({'ncodpers':test_id, 'added_products':final_preds})
+    out_df.to_csv('sub_xgb_new9.csv', index=False)
+    print(datetime.datetime.now()-start_time)
