@@ -37,6 +37,8 @@ cat_cols = list(mapping_dict.keys())
 target_cols = ['ind_ahor_fin_ult1','ind_aval_fin_ult1','ind_cco_fin_ult1','ind_cder_fin_ult1','ind_cno_fin_ult1','ind_ctju_fin_ult1','ind_ctma_fin_ult1','ind_ctop_fin_ult1','ind_ctpp_fin_ult1','ind_deco_fin_ult1','ind_deme_fin_ult1','ind_dela_fin_ult1','ind_ecue_fin_ult1','ind_fond_fin_ult1','ind_hip_fin_ult1','ind_plan_fin_ult1','ind_pres_fin_ult1','ind_reca_fin_ult1','ind_tjcr_fin_ult1','ind_valo_fin_ult1','ind_viv_fin_ult1','ind_nomina_ult1','ind_nom_pens_ult1','ind_recibo_ult1']
 target_cols = target_cols[2:]
 
+
+# encode values
 def getTarget(row):
 	tlist = []
 	for col in target_cols:
@@ -103,20 +105,33 @@ def getRent(row):
 			rent = max_value
 	return round((rent-min_value) / range_value, 6)
 
-def processData(in_file_name, cust_dict):
+
+def processData(in_file_name, cust_dict, cust_dict_04):
+	'''
+	creates X and y for training and X for predicting.
+	'''
 	x_vars_list = []
 	y_vars_list = []
+	# read line by line
 	for row in csv.DictReader(in_file_name):
-		# use only the four months as specified by breakfastpirate #
-		if row['fecha_dato'] not in ['2015-05-28', '2015-06-28', '2016-05-28', '2016-06-28']:
+		# use only the these months
+		if row['fecha_dato'] not in ['2015-04-28', '2016-04-28', '2015-05-28', '2015-06-28', '2016-05-28', '2016-06-28']:
 			continue
 
+		# get target list for may
 		cust_id = int(row['ncodpers'])
 		if row['fecha_dato'] in ['2015-05-28', '2016-05-28']:	
 			target_list = getTarget(row)
 			cust_dict[cust_id] =  target_list[:]
 			continue
 
+		# get target list for april
+		if row['fecha_dato'] in ['2015-04-28', '2016-04-28']:	
+			target_list = getTarget(row)
+			cust_dict_04[cust_id] =  target_list[:]
+			continue
+
+		# include cleaned predictors in X
 		x_vars = []
 		for col in cat_cols:
 			x_vars.append( getIndex(row, col) )
@@ -124,21 +139,26 @@ def processData(in_file_name, cust_dict):
 		x_vars.append( getCustSeniority(row) )
 		x_vars.append( getRent(row) )
 
+		# for real prediction get only X
 		if row['fecha_dato'] == '2016-06-28':
 			prev_target_list = cust_dict.get(cust_id, [0]*22)
-			x_vars_list.append(x_vars + prev_target_list)
+			prev_target_list_04 = cust_dict_04.get(cust_id, [0]*22)
+			x_vars_list.append(x_vars + prev_target_list + prev_target_list_04)
+		# for training set get X and y too
 		elif row['fecha_dato'] == '2015-06-28':
 			prev_target_list = cust_dict.get(cust_id, [0]*22)
+			prev_target_list_04 = cust_dict_04.get(cust_id, [0]*22)
 			target_list = getTarget(row)
 			new_products = [max(x1 - x2,0) for (x1, x2) in zip(target_list, prev_target_list)]
 			if sum(new_products) > 0:
+				# when customer has more new products, the same line is duplicated with other target variable
 				for ind, prod in enumerate(new_products):
 					if prod>0:
 						assert len(prev_target_list) == 22
-						x_vars_list.append(x_vars+prev_target_list)
+						x_vars_list.append(x_vars+prev_target_list+prev_target_list_04)
 						y_vars_list.append(ind)
 
-	return x_vars_list, y_vars_list, cust_dict
+	return x_vars_list, y_vars_list, cust_dict, cust_dict_04
 			
 def runXGB(train_X, train_y, seed_val=0):
 	param = {}
@@ -166,7 +186,7 @@ if __name__ == "__main__":
 	data_dir = os.path.join(root_dir, 'data_examples', 'SantanderReco')
 	data_path = data_dir + '/'
 	train_file =  open(data_path + "train_ver2.csv")
-	x_vars_list, y_vars_list, cust_dict = processData(train_file, {})
+	x_vars_list, y_vars_list, cust_dict, cust_dict_04 = processData(train_file, {}, {})
 	train_X = np.array(x_vars_list)
 	train_y = np.array(y_vars_list)
 	print(np.unique(train_y))
@@ -175,7 +195,7 @@ if __name__ == "__main__":
 	print(train_X.shape, train_y.shape)
 	print(datetime.datetime.now()-start_time)
 	test_file = open(data_path + "test_ver2.csv")
-	x_vars_list, y_vars_list, cust_dict = processData(test_file, cust_dict)
+	x_vars_list, y_vars_list, cust_dict, cust_dict_04 = processData(test_file, cust_dict, cust_dict_04)
 	test_X = np.array(x_vars_list)
 	del x_vars_list
 	test_file.close()
@@ -198,5 +218,5 @@ if __name__ == "__main__":
 	test_id = np.array(pd.read_csv(data_path + "test_ver2.csv", usecols=['ncodpers'])['ncodpers'])
 	final_preds = [" ".join(list(target_cols[pred])) for pred in preds]
 	out_df = pd.DataFrame({'ncodpers':test_id, 'added_products':final_preds})
-	out_df.to_csv('sub_xgb_new4.csv', index=False)
+	out_df.to_csv('sub_xgb_new5.csv', index=False)
 	print(datetime.datetime.now()-start_time)
