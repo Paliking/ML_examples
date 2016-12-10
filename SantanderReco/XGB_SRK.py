@@ -106,7 +106,27 @@ def getRent(row):
     return round((rent-min_value) / range_value, 6)
 
 
-def processData(in_file_name, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12):
+
+def had_in_past(*args):
+    '''
+    had / not had product in last months
+    
+    INPUTS
+    lists of product for each month with same length
+    OUTPUT
+    [0, 1, 1, 1, 0, ...]
+    '''
+    Matrix = np.array(args)
+    sum_line = Matrix.sum(axis=0)
+    pocet = len(sum_line)
+    mask = np.where(sum_line < 1)
+    had_list = np.ones(pocet)
+    had_list[mask] = 0
+    return list(had_list)
+
+
+
+def processData(in_file_name, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01):
     '''
     creates X and y for training and X for predicting.
     '''
@@ -116,7 +136,7 @@ def processData(in_file_name, cust_dict, cust_dict_04, cust_dict_03, cust_dict_0
     for row in csv.DictReader(in_file_name):
         # use only the these months
         if row['fecha_dato'] not in ['2015-01-28', '2016-01-28', '2015-02-28', '2016-02-28', '2015-03-28', 
-                                    '2016-03-28', '2015-04-28', '2014-12-28', '2015-12-28',
+                                    '2016-03-28', '2015-04-28',
                                     '2016-04-28', '2015-05-28', '2015-06-28', '2016-05-28', '2016-06-28']:
             continue
 
@@ -151,11 +171,6 @@ def processData(in_file_name, cust_dict, cust_dict_04, cust_dict_03, cust_dict_0
             cust_dict_01[cust_id] =  target_list[:]
             continue
 
-        # get target list for dec
-        if row['fecha_dato'] in ['2014-12-28', '2015-12-28']:   
-            target_list = getTarget(row)
-            cust_dict_12[cust_id] =  target_list[:]
-            continue
 
         # include cleaned predictors in X
         x_vars = []
@@ -172,8 +187,8 @@ def processData(in_file_name, cust_dict, cust_dict_04, cust_dict_03, cust_dict_0
             prev_target_list_03 = cust_dict_03.get(cust_id, [0]*22)
             prev_target_list_02 = cust_dict_02.get(cust_id, [0]*22)
             prev_target_list_01 = cust_dict_01.get(cust_id, [0]*22)
-            prev_target_list_12 = cust_dict_12.get(cust_id, [0]*22)
-            x_vars_list.append(x_vars + prev_target_list + prev_target_list_04 + prev_target_list_03 + prev_target_list_02 + prev_target_list_01 + prev_target_list_12)
+            had_list = had_in_past(prev_target_list, prev_target_list_04, prev_target_list_03, prev_target_list_02, prev_target_list_01)
+            x_vars_list.append(x_vars + prev_target_list + prev_target_list_04 + prev_target_list_03 + prev_target_list_02 + prev_target_list_01 + had_list)
         # for training set get X and y too
         elif row['fecha_dato'] == '2015-06-28':
             prev_target_list = cust_dict.get(cust_id, [0]*22)
@@ -181,7 +196,7 @@ def processData(in_file_name, cust_dict, cust_dict_04, cust_dict_03, cust_dict_0
             prev_target_list_03 = cust_dict_03.get(cust_id, [0]*22)
             prev_target_list_02 = cust_dict_02.get(cust_id, [0]*22)
             prev_target_list_01 = cust_dict_01.get(cust_id, [0]*22)
-            prev_target_list_12 = cust_dict_12.get(cust_id, [0]*22)
+            had_list = had_in_past(prev_target_list, prev_target_list_04, prev_target_list_03, prev_target_list_02, prev_target_list_01)
             target_list = getTarget(row)
             new_products = [max(x1 - x2,0) for (x1, x2) in zip(target_list, prev_target_list)]
             if sum(new_products) > 0:
@@ -189,10 +204,10 @@ def processData(in_file_name, cust_dict, cust_dict_04, cust_dict_03, cust_dict_0
                 for ind, prod in enumerate(new_products):
                     if prod>0:
                         assert len(prev_target_list) == 22
-                        x_vars_list.append(x_vars+prev_target_list+prev_target_list_04+prev_target_list_03+prev_target_list_02+prev_target_list_01+prev_target_list_12)
+                        x_vars_list.append(x_vars+prev_target_list+prev_target_list_04+prev_target_list_03+prev_target_list_02+prev_target_list_01+had_list)
                         y_vars_list.append(ind)
 
-    return x_vars_list, y_vars_list, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12
+    return x_vars_list, y_vars_list, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01
             
 def runXGB(train_X, train_y, seed_val=0):
     param = {}
@@ -206,7 +221,7 @@ def runXGB(train_X, train_y, seed_val=0):
     param['subsample'] = 0.7
     param['colsample_bytree'] = 0.7
     param['seed'] = seed_val
-    num_rounds = 50
+    num_rounds = 70
 
     plst = list(param.items())
     xgtrain = xgb.DMatrix(train_X, label=train_y)
@@ -220,7 +235,7 @@ if __name__ == "__main__":
     data_dir = os.path.join(root_dir, 'data_examples', 'SantanderReco')
     data_path = data_dir + '/'
     train_file =  open(data_path + "train_ver2.csv")
-    x_vars_list, y_vars_list, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12 = processData(train_file, {}, {}, {}, {}, {}, {})
+    x_vars_list, y_vars_list, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01 = processData(train_file, {}, {}, {}, {}, {})
     train_X = np.array(x_vars_list)
     train_y = np.array(y_vars_list)
     print(np.unique(train_y))
@@ -229,7 +244,7 @@ if __name__ == "__main__":
     print(train_X.shape, train_y.shape)
     print(datetime.datetime.now()-start_time)
     test_file = open(data_path + "test_ver2.csv")
-    x_vars_list, y_vars_list, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12 = processData(test_file, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01, cust_dict_12)
+    x_vars_list, y_vars_list, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01 = processData(test_file, cust_dict, cust_dict_04, cust_dict_03, cust_dict_02, cust_dict_01)
     test_X = np.array(x_vars_list)
     del x_vars_list
     test_file.close()
@@ -252,5 +267,5 @@ if __name__ == "__main__":
     test_id = np.array(pd.read_csv(data_path + "test_ver2.csv", usecols=['ncodpers'])['ncodpers'])
     final_preds = [" ".join(list(target_cols[pred])) for pred in preds]
     out_df = pd.DataFrame({'ncodpers':test_id, 'added_products':final_preds})
-    out_df.to_csv('sub_xgb_new9.csv', index=False)
+    out_df.to_csv('sub_xgb_new3.csv', index=False)
     print(datetime.datetime.now()-start_time)
