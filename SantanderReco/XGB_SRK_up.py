@@ -14,6 +14,7 @@ import pandas as pd
 import xgboost as xgb
 from sklearn import preprocessing, ensemble
 import os
+import random
 
 
 mapping_dict = {
@@ -94,17 +95,54 @@ def getRent(row):
     min_value = 0.
     max_value = 1500000.
     range_value = max_value - min_value
-    missing_value = 101850.
+    renta_dict = {'ALBACETE': 76895,  'ALICANTE': 60562,  'ALMERIA': 77815,  'ASTURIAS': 83995,  'AVILA': 78525,  'BADAJOZ': 60155,  'BALEARS, ILLES': 114223,  'BARCELONA': 135149,  'BURGOS': 87410, 'NAVARRA' : 101850,
+    'CACERES': 78691,  'CADIZ': 75397,  'CANTABRIA': 87142,  'CASTELLON': 70359,  'CEUTA': 333283, 'CIUDAD REAL': 61962,  'CORDOBA': 63260,  'CORUÑA, A': 103567,  'CUENCA': 70751,  'GIRONA': 100208,  'GRANADA': 80489,
+    'GUADALAJARA': 100635,  'HUELVA': 75534,  'HUESCA': 80324,  'JAEN': 67016,  'LEON': 76339,  'LERIDA': 59191,  'LUGO': 68219,  'MADRID': 141381,  'MALAGA': 89534,  'MELILLA': 116469, 'GIPUZKOA': 101850,
+    'MURCIA': 68713,  'OURENSE': 78776,  'PALENCIA': 90843,  'PALMAS, LAS': 78168,  'PONTEVEDRA': 94328,  'RIOJA, LA': 91545,  'SALAMANCA': 88738,  'SANTA CRUZ DE TENERIFE': 83383, 'ALAVA': 101850, 'BIZKAIA' : 101850,
+    'SEGOVIA': 81287,  'SEVILLA': 94814,  'SORIA': 71615,  'TARRAGONA': 81330,  'TERUEL': 64053,  'TOLEDO': 65242,  'UNKNOWN': 103689,  'VALENCIA': 73463,  'VALLADOLID': 92032,  'ZAMORA': 73727,  'ZARAGOZA': 98827}
+
+    #missing_value = 101850.
     rent = row['renta'].strip()
     if rent == 'NA' or rent == '':
-        rent = missing_value
+        if row['nomprov'] == 'NA' or row['nomprov'] == '':
+            rent = float(renta_dict['UNKNOWN'])
+        else:
+            rent = float(renta_dict[row['nomprov']])
     else:
         rent = float(rent)
         if rent < min_value:
             rent = min_value
         elif rent > max_value:
             rent = max_value
+
     return round((rent-min_value) / range_value, 6)
+
+
+def getMarriageIndex(row, age, sex, income):
+    marriage_age = 28
+    modifier = 0
+    if sex == 'V':
+        modifier += -2
+    if income <= 101850:
+        modifier += -1
+    
+    marriage_age_mod = marriage_age + modifier
+    
+    if age <= marriage_age_mod:
+        return 0
+    else:
+        return 1
+
+
+def getMonth(row):
+    return int(row['fecha_dato'].split('-')[1])
+
+def getjoinMonth(row):
+    if row['fecha_alta'].strip() == 'NA' or row['fecha_alta'].strip() == '':
+        return int(random.choice([1,2,3,4,5,6,7,8,9,10,11,12]))
+    else:
+        return int(row['fecha_alta'].split('-')[1])
+
 
 def get_days_in(row, ref_time_str):
     '''
@@ -227,9 +265,15 @@ def processData(in_file_name, cust_dict, cust_dict_04, cust_dict_03, cust_dict_0
         x_vars = []
         for col in cat_cols:
             x_vars.append( getIndex(row, col) )
-        x_vars.append( getAge(row) )
-        x_vars.append( getCustSeniority(row) )
-        x_vars.append( getRent(row) )
+        sex = getIndex(row, 'sexo')
+        age = getAge(row)
+        x_vars.append(age)
+        # x_vars.append( getMonth(row))
+        # x_vars.append( getjoinMonth(row))
+        x_vars.append(getCustSeniority(row))
+        income = getRent(row)
+        x_vars.append(income)
+        x_vars.append(getMarriageIndex(row, age, sex, income) )
         # x_vars.append(get_days_in(row, row['fecha_dato']))
 
         # for real prediction get only X
@@ -268,10 +312,10 @@ def runXGB(train_X, train_y, seed_val=0):
     param['objective'] = 'multi:softprob'
     param['eta'] = 0.05
     param['max_depth'] = 9
-    param['silent'] = 0
+    param['silent'] = 1
     param['num_class'] = 22
     param['eval_metric'] = "mlogloss"
-    param['min_child_weight'] = 2
+    param['min_child_weight'] = 1
     param['subsample'] = 0.7
     param['colsample_bytree'] = 0.7
     param['seed'] = seed_val
@@ -321,5 +365,5 @@ if __name__ == "__main__":
     test_id = np.array(pd.read_csv(data_path + "test_ver2.csv", usecols=['ncodpers'])['ncodpers'])
     final_preds = [" ".join(list(target_cols[pred])) for pred in preds]
     out_df = pd.DataFrame({'ncodpers':test_id, 'added_products':final_preds})
-    out_df.to_csv('sub_xgb_new1.csv', index=False)
+    out_df.to_csv('sub_xgb_ex4.csv', index=False)
     print(datetime.datetime.now()-start_time)
