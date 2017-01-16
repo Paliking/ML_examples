@@ -53,9 +53,11 @@ img_width, img_height = 150, 150
 
 train_data_dir = '/home/pablo/Documents/Git_repositories/data_examples/DogsVsCats/data/train'
 validation_data_dir = '/home/pablo/Documents/Git_repositories/data_examples/DogsVsCats/data/validation'
+test_data_dir = '/home/pablo/Documents/Git_repositories/data_examples/DogsVsCats/data/test'
 nb_train_samples = 2000
 nb_validation_samples = 800
-nb_epoch = 2
+nb_test_samples = 12500
+nb_epoch = 1
 
 
 model = Sequential()
@@ -112,4 +114,12 @@ model.fit_generator(
         validation_data=validation_generator,
         nb_val_samples=nb_validation_samples)
 
-model.save_weights('first_try.h5')
+# model.save_weights('ep50.h5')
+
+test_generator = test_datagen.flow_from_directory(
+        test_data_dir,
+        target_size=(img_width, img_height),
+        batch_size=32,
+        class_mode='binary')
+predictions = model.predict_generator(test_generator, nb_test_samples)
+print(predictions)

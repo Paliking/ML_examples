@@ -33,23 +33,24 @@ from keras import optimizers
 from keras.models import Sequential
 from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.layers import Activation, Dropout, Flatten, Dense
+import pandas as pd
 
 from keras import backend as K 
 K.set_image_dim_ordering('th')
 
 # path to the model weights files.
-VGG16_weights_path = '../keras/examples/vgg16_weights.h5'
-top_model_weights_path = 'fc_model.h5'
+VGG16_weights_path = '/home/pablo/Documents/VGG16/vgg16_weights.h5'
+top_model_weights_path = 'bottleneck_top_model.h5'
 # dimensions of our images.
 img_width, img_height = 150, 150
 
-train_data_dir = 'data/train'
-validation_data_dir = 'data/validation'
-test_data_dir = 
-nb_train_samples = 2000
-nb_validation_samples = 800
-nb_predict_samples = 
-nb_epoch = 50
+# train_data_dir = 'data/train'
+# validation_data_dir = 'data/validation'
+test_data_dir = '/home/pablo/Documents/Git_repositories/data_examples/DogsVsCats/data/test_small'
+# nb_train_samples = 2000
+# nb_validation_samples = 800
+nb_predict_samples = len(os.listdir(os.path.join(test_data_dir, 'test')))
+# nb_epoch = 50
 
 # build the VGG16 network
 model = Sequential()
@@ -168,11 +169,20 @@ test_generator = test_datagen.flow_from_directory(
         class_mode=None,
         shuffle=False)
 
+# predicttion
 predictions = model.predict_generator(test_generator, nb_predict_samples)
-# predictions = model.predict_classes(test_generator, nb_predict_samples)
 # save predicitions
 np.save('test_data_predictions', predictions)
 
 # load predictions
-test_data = np.load('test_data_predictions.npy')
-print(test_data)
+test_prediction = np.load('test_data_predictions.npy')
+print(test_prediction)
+
+
+print(os.listdir(os.path.join(test_data_dir, 'test')))
+images_IDs = [ j.split('.')[0] for j in os.listdir(os.path.join(test_data_dir, 'test')) ]
+df = pd.DataFrame()
+df['id'] = images_IDs
+df['label'] = test_prediction
+print(df)
+df.to_csv('sub.csv', index=False)
