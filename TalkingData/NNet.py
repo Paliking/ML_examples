@@ -14,20 +14,23 @@ print("Initialize libraries")
 import pandas as pd
 import sys
 import numpy as np
+import os
+from sklearn.preprocessing import LabelEncoder
+from sklearn.cross_validation import train_test_split
+
+
+from scipy import sparse
 
 from keras.layers import Dense, Dropout, Activation
 import matplotlib.pyplot as plt
 from sklearn.metrics import log_loss
 import matplotlib.pyplot as plt
 from keras.layers.advanced_activations import PReLU
-from sklearn.preprocessing import LabelEncoder
 
-import os
-from scipy import sparse
-from sklearn.cross_validation import train_test_split
+
 from keras.models import Sequential
 
-
+#%%
 #------------------------------------------------- Write functions ----------------------------------------
 
 def rstr(df): 
@@ -62,7 +65,7 @@ def batch_generatorp(X, batch_size, shuffle):
         yield X_batch
         if (counter == number_of_batches):
             counter = 0
-
+#%%
 #------------------------------------------------ Read data from source files ------------------------------------
 
 seed = 7
@@ -83,7 +86,7 @@ app_events.info()
 app_events= app_events.groupby("event_id")["app_id"].apply(
     lambda x: " ".join(set("app_id:" + str(s) for s in x)))
 app_events.head(5)
-
+#%%
 print("# Read Events")
 events = pd.read_csv(os.path.join(datadir,'events.csv'), dtype={'device_id': np.str})
 events.head(5)
