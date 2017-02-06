@@ -1,3 +1,8 @@
+
+# https://www.kaggle.com/abriosi/predicting-red-hat-business-value/raddar-0-98-xgboost-sparse-matrix-python
+# nefunguje mi to
+
+
 import numpy as np 
 import pandas as pd
 import xgboost as xgb
@@ -28,9 +33,9 @@ def act_data_treatment(dsname):
     
     return dataset
 
-act_train_data = pd.read_csv("../input/act_train.csv",dtype={'people_id': np.str, 'activity_id': np.str, 'outcome': np.int8}, parse_dates=['date'])
-act_test_data  = pd.read_csv("../input/act_test.csv", dtype={'people_id': np.str, 'activity_id': np.str}, parse_dates=['date'])
-people_data    = pd.read_csv("../input/people.csv", dtype={'people_id': np.str, 'activity_id': np.str, 'char_38': np.int32}, parse_dates=['date'])
+act_train_data = pd.read_csv("data/act_train.csv",dtype={'people_id': np.str, 'activity_id': np.str, 'outcome': np.int8}, parse_dates=['date'])
+act_test_data  = pd.read_csv("data/act_test.csv", dtype={'people_id': np.str, 'activity_id': np.str}, parse_dates=['date'])
+people_data    = pd.read_csv("data/people.csv", dtype={'people_id': np.str, 'activity_id': np.str, 'char_38': np.int32}, parse_dates=['date'])
 
 act_train_data=act_train_data.drop('char_10',axis=1)
 act_test_data=act_test_data.drop('char_10',axis=1)
@@ -50,12 +55,23 @@ del act_train_data
 del act_test_data
 del people_data
 
+print('training set')
+print(train)
+print('testing set')
+print(test)
+
 train=train.sort_values(['people_id'], ascending=[1])
 test=test.sort_values(['people_id'], ascending=[1])
+
+print('training set sorted')
+print(train)
+print('testing set sorted')
+print(test)
 
 train_columns = train.columns.values
 test_columns = test.columns.values
 features = list(set(train_columns) & set(test_columns))
+print('pocet features', len(features))
 
 train.fillna('NA', inplace=True)
 test.fillna('NA', inplace=True)
@@ -85,10 +101,21 @@ for category in X.columns:
     if category not in categorical:
         not_categorical.append(category)
 
+print('X shape:', X.shape)
+
 enc = OneHotEncoder(handle_unknown='ignore')
-enc=enc.fit(pd.concat([X[categorical],X_test[categorical]]))
+enc.fit(pd.concat([X[categorical],X_test[categorical]]))
 X_cat_sparse=enc.transform(X[categorical])
 X_test_cat_sparse=enc.transform(X_test[categorical])
+
+print('X typy:')
+for i in X_cat_sparse.columns:
+	print(i, X_cat_sparse[i].dtype)
+
+for i in X_test_cat_sparse.columns:
+	print(i, X_cat_sparse[i].dtype)
+
+print(X_cat_sparse)
 
 from scipy.sparse import hstack
 X_sparse=hstack((X[not_categorical], X_cat_sparse))
@@ -98,6 +125,11 @@ print("Training data: " + format(X_sparse.shape))
 print("Test data: " + format(X_test_sparse.shape))
 print("###########")
 print("One Hot enconded Test Dataset Script")
+
+print('training set')
+print(X_sparse)
+print('testing set')
+print(X_test_sparse)
 
 dtrain = xgb.DMatrix(X_sparse,label=y)
 dtest = xgb.DMatrix(X_test_sparse)
@@ -117,5 +149,5 @@ bst = xgb.train(param, dtrain, num_round, watchlist,early_stopping_rounds=early_
 
 ypred = bst.predict(dtest)
 output = pd.DataFrame({ 'activity_id' : test['activity_id'], 'outcome': ypred })
-output.head()
+print(output.head())
 output.to_csv('without_leak.csv', index = False)
