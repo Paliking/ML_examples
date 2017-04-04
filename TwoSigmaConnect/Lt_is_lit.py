@@ -61,8 +61,8 @@ def hcc_encode(train_df, test_df, variable, target, prior_prob, k, f=1, g=1, r_k
     return
 
 # Load data
-X_train = pd.read_json("../input/train.json").sort_values(by="listing_id")
-X_test = pd.read_json("../input/test.json").sort_values(by="listing_id")
+X_train = pd.read_json("input/train.json").sort_values(by="listing_id")
+X_test = pd.read_json("input/test.json").sort_values(by="listing_id")
 
 # Make target integer, one hot encoded, calculate target priors
 X_train = X_train.replace({"interest_level": {"low": 0, "medium": 1, "high": 2}})
@@ -104,12 +104,12 @@ X_train = X_train.join(pd.DataFrame(data=mlb.transform(X_train["features"].apply
 X_test = X_test.join(pd.DataFrame(data=mlb.transform(X_test["features"].apply(flt)), columns=columns, index=X_test.index))
 
 # Save
-"""
+
 X_train = X_train.sort_index(axis=1).sort_values(by="listing_id")
 X_test = X_test.sort_index(axis=1).sort_values(by="listing_id")
 columns_to_drop = ["photos", "pred_0","pred_1", "pred_2", "description", "features", "created"]
 X_train.drop([c for c in X_train.columns if c in columns_to_drop], axis=1).\
-    to_csv("data/train_python.csv", index=False, encoding='utf-8')
+    to_csv("data_prepared/train_python.csv", index=False, encoding='utf-8')
 X_test.drop([c for c in X_test.columns if c in columns_to_drop], axis=1).\
-    to_csv("data/test_python.csv", index=False, encoding='utf-8')
-"""    
+    to_csv("data_prepared/test_python.csv", index=False, encoding='utf-8')
+ 
