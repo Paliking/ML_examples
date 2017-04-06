@@ -6,9 +6,10 @@ from sklearn.model_selection import StratifiedKFold
 import random
 from math import exp
 import xgboost as xgb
+import datetime as dt
 
-random.seed(321)
-np.random.seed(321)
+random.seed(444)
+np.random.seed(444)
 
 X_train = pd.read_json("../input/train.json")
 X_test = pd.read_json("../input/test.json")
@@ -192,34 +193,69 @@ transform_categorical_data()
 remove_columns(X_train)
 remove_columns(X_test)
 
-print("Start fitting...")
+# print("Start fitting...")
 
-param = {}
-param['objective'] = 'multi:softprob'
-param['eta'] = 0.02
-param['max_depth'] = 4
-param['silent'] = 1
-param['num_class'] = 3
-param['eval_metric'] = "mlogloss"
-param['min_child_weight'] = 1
-param['subsample'] = 0.7
-param['colsample_bytree'] = 0.7
-param['seed'] = 321
-param['nthread'] = 8
-num_rounds = 2000
+# param = {}
+# param['objective'] = 'multi:softprob'
+# param['eta'] = 0.04
+# param['max_depth'] = 4
+# param['silent'] = 1
+# param['num_class'] = 3
+# param['eval_metric'] = "mlogloss"
+# param['min_child_weight'] = 1
+# param['subsample'] = 0.7
+# param['colsample_bytree'] = 0.7
+# param['seed'] = 321
+# param['nthread'] = 8
+# num_rounds = 1000
 
-xgtrain = xgb.DMatrix(X_train, label=y)
-clf = xgb.train(param, xgtrain, num_rounds)
+# xgtrain = xgb.DMatrix(X_train, label=y)
+# clf = xgb.train(param, xgtrain, num_rounds)
 
-print("Fitted")
+# print("Fitted")
 
-def prepare_submission(model):
-    xgtest = xgb.DMatrix(X_test)
-    preds = model.predict(xgtest)    
-    sub = pd.DataFrame(data = {'listing_id': X_test['listing_id'].ravel()})
-    sub['low'] = preds[:, 0]
-    sub['medium'] = preds[:, 1]
-    sub['high'] = preds[:, 2]
-    sub.to_csv("submission.csv", index = False, header = True)
+# def prepare_submission(model):
+#     xgtest = xgb.DMatrix(X_test)
+#     preds = model.predict(xgtest)    
+#     sub = pd.DataFrame(data = {'listing_id': X_test['listing_id'].ravel()})
+#     sub['low'] = preds[:, 0]
+#     sub['medium'] = preds[:, 1]
+#     sub['high'] = preds[:, 2]
+#     sub.to_csv("../sub/submission.csv", index = False, header = True)
 
-prepare_submission(clf)
+# prepare_submission(clf)
+
+# option 2, automatic detection of the best num_rounds
+train_X = X_train.values
+train_y = y
+test_X = X_test.values
+
+
+NFOLDS = 5
+
+params = {
+    'eta':.05,
+    'colsample_bytree':.8,
+    'subsample':.8,
+    'seed':444,
+    'max_depth':6,
+    'objective':'multi:softprob',
+    'eval_metric':'mlogloss',
+    'num_class':3,
+    'silent':1
+}
+
+dtrain = xgb.DMatrix(data=train_X, label=train_y)
+dtest = xgb.DMatrix(data=test_X)
+
+bst = xgb.cv(params, dtrain, 10000, NFOLDS, early_stopping_rounds=50, verbose_eval=25)
+best_rounds = np.argmin(bst['test-mlogloss-mean'])
+bst = xgb.train(params, dtrain, best_rounds)
+
+preds = bst.predict(dtest)
+preds = pd.DataFrame(preds)
+
+cols = ['low', 'medium', 'high']
+preds.columns = cols
+preds['listing_id'] = X_test.listing_id.values
+preds.to_csv('../sub/LtIsLit_XGB_brandon.csv', index=None)

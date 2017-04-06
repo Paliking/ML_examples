@@ -18,8 +18,8 @@ def runGBM(clf, train_X, train_y, val_X):
     return pred_test_y, pred_classes, pred_train_y
 
 
-df_train = pd.read_csv('data_prepared/train_Man.csv')
-df_test = pd.read_csv('data_prepared/test_Man.csv')
+df_train = pd.read_csv('../data_prepared/train_Man.csv')
+df_test = pd.read_csv('../data_prepared/test_Man.csv')
 
 
 predictors = [ i for i in df_train.columns if not i in ['interest_level']]

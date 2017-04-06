@@ -176,14 +176,76 @@ def add_manager_level_weaker_leakage(train_df, test_df):
     return train_df, test_df
 
 
+def add_builing_level_weaker_leakage(train_df, test_df):
+    index=list(range(train_df.shape[0]))
+    random.shuffle(index)
+    a=[np.nan]*len(train_df)
+    b=[np.nan]*len(train_df)
+    c=[np.nan]*len(train_df)
+
+    for i in range(5):
+        building_level={}
+        for j in train_df['building_id'].values:
+            building_level[j]=[0,0,0]
+        test_index=index[int((i*train_df.shape[0])/5):int(((i+1)*train_df.shape[0])/5)]
+        train_index=list(set(index).difference(test_index))
+        for j in train_index:
+            temp=train_df.iloc[j]
+            if temp['interest_level']=='low':
+                building_level[temp['building_id']][0]+=1
+            if temp['interest_level']=='medium':
+                building_level[temp['building_id']][1]+=1
+            if temp['interest_level']=='high':
+                building_level[temp['building_id']][2]+=1
+        for j in test_index:
+            temp=train_df.iloc[j]
+            if sum(building_level[temp['building_id']])!=0:
+                a[j]=building_level[temp['building_id']][0]*1.0/sum(building_level[temp['building_id']])
+                b[j]=building_level[temp['building_id']][1]*1.0/sum(building_level[temp['building_id']])
+                c[j]=building_level[temp['building_id']][2]*1.0/sum(building_level[temp['building_id']])
+    train_df['building_level_low']=a
+    train_df['building_level_medium']=b
+    train_df['building_level_high']=c
+
+
+    a=[]
+    b=[]
+    c=[]
+    building_level={}
+    for j in train_df['building_id'].values:
+        building_level[j]=[0,0,0]
+    for j in range(train_df.shape[0]):
+        temp=train_df.iloc[j]
+        if temp['interest_level']=='low':
+            building_level[temp['building_id']][0]+=1
+        if temp['interest_level']=='medium':
+            building_level[temp['building_id']][1]+=1
+        if temp['interest_level']=='high':
+            building_level[temp['building_id']][2]+=1
+
+    for i in test_df['building_id'].values:
+        if i not in building_level.keys():
+            a.append(np.nan)
+            b.append(np.nan)
+            c.append(np.nan)
+        else:
+            a.append(building_level[i][0]*1.0/sum(building_level[i]))
+            b.append(building_level[i][1]*1.0/sum(building_level[i]))
+            c.append(building_level[i][2]*1.0/sum(building_level[i]))
+    test_df['building_level_low']=a
+    test_df['building_level_medium']=b
+    test_df['building_level_high']=c
+    return train_df, test_df
+
 
 # Load data
-X_train = pd.read_json("input/train.json").sort_values(by="listing_id")
-X_test = pd.read_json("input/test.json").sort_values(by="listing_id")
+X_train = pd.read_json("../input/train.json").sort_values(by="listing_id")
+X_test = pd.read_json("../input/test.json").sort_values(by="listing_id")
 
 # add manager skill
 # X_train, X_test = add_manager_skill(X_train, X_test) # not good; big leakage
-# X_train, X_test = add_manager_level_weaker_leakage(X_train, X_test)
+X_train, X_test = add_manager_level_weaker_leakage(X_train, X_test)
+X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
 
 # Make target integer, one hot encoded, calculate target priors
 X_train = X_train.replace({"interest_level": {"low": 0, "medium": 1, "high": 2}})
@@ -236,7 +298,7 @@ X_train = X_train.sort_index(axis=1).sort_values(by="listing_id")
 X_test = X_test.sort_index(axis=1).sort_values(by="listing_id")
 columns_to_drop = ["photos", "pred_0","pred_1", "pred_2", "description", "features", "created"]
 X_train.drop([c for c in X_train.columns if c in columns_to_drop], axis=1).\
-    to_csv("data_prepared/train_Man.csv", index=False, encoding='utf-8')
+    to_csv("../data_prepared/train_ManBild.csv", index=False, encoding='utf-8')
 X_test.drop([c for c in X_test.columns if c in columns_to_drop], axis=1).\
-    to_csv("data_prepared/test_Man.csv", index=False, encoding='utf-8')
+    to_csv("../data_prepared/test_ManBild.csv", index=False, encoding='utf-8')
  
