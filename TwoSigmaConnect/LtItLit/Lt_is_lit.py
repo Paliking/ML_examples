@@ -238,12 +238,69 @@ def add_builing_level_weaker_leakage(train_df, test_df):
     return train_df, test_df
 
 
+def add_feature_groupby_managerlevel(target_col, train_df, test_df, n_folds=5):
+
+    def count_for_InterestLevel(group, interest_level=0):
+        return len(group[group==interest_level])
+
+    # random shuffle
+    df = train_df.sample(frac=1)
+    interest_levels = ['low', 'medium', 'high']
+    # n-fold CV
+    for i in range(n_folds):
+        val_indices = df.iloc[int((i*train_df.shape[0])/n_folds):int(((i+1)*train_df.shape[0])/n_folds)].index
+        dfcv_val = df.loc[val_indices]
+        dfcv_train = df[~df.index.isin(val_indices)]
+        # grouped on cv_train only
+        grouped = dfcv_train.groupby(['manager_id', target_col])['interest_level']
+        for i_level in interest_levels:
+            col_name = 'count_fold{}_i{}'.format(i, i_level)
+            df[col_name] = grouped.transform(count_for_InterestLevel, interest_level=i_level)
+
+    df.fillna(0, inplace=True)
+    # sum all folds stats together for every interest_level
+    for i_level in interest_levels:
+        count_cols = [ col for col in df.columns if col.startswith('count_fold') and col.endswith(str(i_level)) ]
+        col_sum = 'folds_sum_i{}'.format(i_level)
+        df[col_sum] = df[count_cols].sum(axis=1)
+
+    # devide columns for all 3 interest_levels by their sum
+    folds_sums = [ 'folds_sum_i{}'.format(val) for val in interest_levels]
+    target_col_levels = df[folds_sums].divide(df[folds_sums].sum(axis=1), axis=0)
+    # take 3 features to final train df
+    new_features = ['{}_manager_level{}'.format(target_col, j) for j in interest_levels]
+    train_df[new_features] = target_col_levels
+
+    # ---add features to real test set----
+    df_temp = train_df.copy()
+    grouped = df_temp.groupby(['manager_id', target_col])['interest_level']
+    for i_level in interest_levels:
+        col_name = 'count_i{}'.format(i_level)
+        df_temp[col_name] = grouped.transform(count_for_InterestLevel, interest_level=i_level)
+
+    # devide columns for all 3 interest_levels by their sum
+    folds_sums = [ 'count_i{}'.format(val) for val in interest_levels]
+    target_col_levels = df_temp[folds_sums].divide(df_temp[folds_sums].sum(axis=1), axis=0)
+    print(target_col_levels)
+    test_df[new_features] = target_col_levels
+    return train_df, test_df
+
+
+
+
+
+
+
+
+
+
 # Load data
 X_train = pd.read_json("../input/train.json").sort_values(by="listing_id")
 X_test = pd.read_json("../input/test.json").sort_values(by="listing_id")
 
 # add manager skill
 # X_train, X_test = add_manager_skill(X_train, X_test) # not good; big leakage
+X_train, X_test = add_feature_groupby_managerlevel('bathrooms', X_train, X_test)
 X_train, X_test = add_manager_level_weaker_leakage(X_train, X_test)
 X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
 
@@ -298,7 +355,7 @@ X_train = X_train.sort_index(axis=1).sort_values(by="listing_id")
 X_test = X_test.sort_index(axis=1).sort_values(by="listing_id")
 columns_to_drop = ["photos", "pred_0","pred_1", "pred_2", "description", "features", "created"]
 X_train.drop([c for c in X_train.columns if c in columns_to_drop], axis=1).\
-    to_csv("../data_prepared/train_ManBild.csv", index=False, encoding='utf-8')
+    to_csv("../data_prepared/train_ManBild_exp.csv", index=False, encoding='utf-8')
 X_test.drop([c for c in X_test.columns if c in columns_to_drop], axis=1).\
-    to_csv("../data_prepared/test_ManBild.csv", index=False, encoding='utf-8')
+    to_csv("../data_prepared/test_ManBild_exp.csv", index=False, encoding='utf-8')
  

@@ -18,8 +18,8 @@ def runGBM(clf, train_X, train_y, val_X):
     return pred_test_y, pred_classes, pred_train_y
 
 
-df_train = pd.read_csv('../data_prepared/train_Man.csv')
-df_test = pd.read_csv('../data_prepared/test_Man.csv')
+df_train = pd.read_csv('../data_prepared/train_ManBild_exp.csv')
+df_test = pd.read_csv('../data_prepared/test_ManBild_exp.csv')
 
 
 predictors = [ i for i in df_train.columns if not i in ['interest_level']]
@@ -50,5 +50,5 @@ preds, pred_classes, pred_train_y = runGBM(clf, train_X, train_y, test_X)
 out_df = pd.DataFrame(preds)
 out_df.columns = ["low", "medium", "high"]
 out_df["listing_id"] = df_test.listing_id.values
-out_df.to_csv("sub/gbm_ltislit1.csv", index=False)
+out_df.to_csv("../sub/gbm_ltislit_MBroom.csv", index=False)
 
