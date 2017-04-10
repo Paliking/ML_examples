@@ -120,6 +120,10 @@ def transform_data(X):
     X['price_per_bed'] = X['price'] / X['bedrooms']    
     X['price_per_bath'] = X['price'] / X['bathrooms']
     X['price_per_room'] = X['price'] / (X['bathrooms'] + X['bedrooms'] )
+    X["bedPerBath"] = X['bedrooms'] / X['bathrooms']
+    X["bedBathDiff"] = X['bedrooms'] - X['bathrooms']
+    X["bedBathSum"] = X["bedrooms"] + X['bathrooms']
+    X["bedsPerc"] = X["bedrooms"] / (X['bedrooms'] + X['bathrooms'])
 
     # added from other script
     X["created"] = pd.to_datetime(X["created"])
@@ -243,6 +247,130 @@ def add_manager_level_weaker_leakage(train_df, test_df):
     return train_df, test_df
 
 
+def add_builing_level_weaker_leakage(train_df, test_df):
+    index=list(range(train_df.shape[0]))
+    random.shuffle(index)
+    a=[np.nan]*len(train_df)
+    b=[np.nan]*len(train_df)
+    c=[np.nan]*len(train_df)
+
+    for i in range(5):
+        building_level={}
+        for j in train_df['building_id'].values:
+            building_level[j]=[0,0,0]
+        test_index=index[int((i*train_df.shape[0])/5):int(((i+1)*train_df.shape[0])/5)]
+        train_index=list(set(index).difference(test_index))
+        for j in train_index:
+            temp=train_df.iloc[j]
+            if temp['interest_level']==0:
+                building_level[temp['building_id']][0]+=1
+            if temp['interest_level']==1:
+                building_level[temp['building_id']][1]+=1
+            if temp['interest_level']==2:
+                building_level[temp['building_id']][2]+=1
+        for j in test_index:
+            temp=train_df.iloc[j]
+            if sum(building_level[temp['building_id']])!=0:
+                a[j]=building_level[temp['building_id']][0]*1.0/sum(building_level[temp['building_id']])
+                b[j]=building_level[temp['building_id']][1]*1.0/sum(building_level[temp['building_id']])
+                c[j]=building_level[temp['building_id']][2]*1.0/sum(building_level[temp['building_id']])
+    train_df['building_level_low']=a
+    train_df['building_level_medium']=b
+    train_df['building_level_high']=c
+
+
+    a=[]
+    b=[]
+    c=[]
+    building_level={}
+    for j in train_df['building_id'].values:
+        building_level[j]=[0,0,0]
+    for j in range(train_df.shape[0]):
+        temp=train_df.iloc[j]
+        if temp['interest_level']==0:
+            building_level[temp['building_id']][0]+=1
+        if temp['interest_level']==1:
+            building_level[temp['building_id']][1]+=1
+        if temp['interest_level']==2:
+            building_level[temp['building_id']][2]+=1
+
+    for i in test_df['building_id'].values:
+        if i not in building_level.keys():
+            a.append(np.nan)
+            b.append(np.nan)
+            c.append(np.nan)
+        else:
+            a.append(building_level[i][0]*1.0/sum(building_level[i]))
+            b.append(building_level[i][1]*1.0/sum(building_level[i]))
+            c.append(building_level[i][2]*1.0/sum(building_level[i]))
+    test_df['building_level_low']=a
+    test_df['building_level_medium']=b
+    test_df['building_level_high']=c
+    return train_df, test_df
+
+
+def add_adress_level_weaker_leakage(train_df, test_df):
+    index=list(range(train_df.shape[0]))
+    random.shuffle(index)
+    a=[np.nan]*len(train_df)
+    b=[np.nan]*len(train_df)
+    c=[np.nan]*len(train_df)
+
+    for i in range(5):
+        building_level={}
+        for j in train_df['display_address'].values:
+            building_level[j]=[0,0,0]
+        test_index=index[int((i*train_df.shape[0])/5):int(((i+1)*train_df.shape[0])/5)]
+        train_index=list(set(index).difference(test_index))
+        for j in train_index:
+            temp=train_df.iloc[j]
+            if temp['interest_level']==0:
+                building_level[temp['display_address']][0]+=1
+            if temp['interest_level']==1:
+                building_level[temp['display_address']][1]+=1
+            if temp['interest_level']==2:
+                building_level[temp['display_address']][2]+=1
+        for j in test_index:
+            temp=train_df.iloc[j]
+            if sum(building_level[temp['display_address']])!=0:
+                a[j]=building_level[temp['display_address']][0]*1.0/sum(building_level[temp['display_address']])
+                b[j]=building_level[temp['display_address']][1]*1.0/sum(building_level[temp['display_address']])
+                c[j]=building_level[temp['display_address']][2]*1.0/sum(building_level[temp['display_address']])
+    train_df['display_address_level_low']=a
+    train_df['display_address_level_medium']=b
+    train_df['display_address_level_high']=c
+
+
+    a=[]
+    b=[]
+    c=[]
+    building_level={}
+    for j in train_df['display_address'].values:
+        building_level[j]=[0,0,0]
+    for j in range(train_df.shape[0]):
+        temp=train_df.iloc[j]
+        if temp['interest_level']==0:
+            building_level[temp['display_address']][0]+=1
+        if temp['interest_level']==1:
+            building_level[temp['display_address']][1]+=1
+        if temp['interest_level']==2:
+            building_level[temp['display_address']][2]+=1
+
+    for i in test_df['display_address'].values:
+        if i not in building_level.keys():
+            a.append(np.nan)
+            b.append(np.nan)
+            c.append(np.nan)
+        else:
+            a.append(building_level[i][0]*1.0/sum(building_level[i]))
+            b.append(building_level[i][1]*1.0/sum(building_level[i]))
+            c.append(building_level[i][2]*1.0/sum(building_level[i]))
+    test_df['display_address_level_low']=a
+    test_df['display_address_level_medium']=b
+    test_df['display_address_level_high']=c
+    return train_df, test_df
+
+
 def add_stats_for_manager(variable, train_df, test_df):
     '''
     Groupby manager_id and calculate 'sum', 'mean', 'count', 'median' of selected variable.
@@ -276,9 +404,13 @@ normalize_high_cordiality_data()
 transform_categorical_data()
 
 X_train, X_test = add_manager_level_weaker_leakage(X_train, X_test)
+# X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
+# X_train, X_test = add_adress_level_weaker_leakage(X_train, X_test)
 X_train, X_test = add_stats_for_manager('price', X_train, X_test)
 X_train, X_test = add_stats_for_manager('bedrooms', X_train, X_test)
 X_train, X_test = add_stats_for_manager('bathrooms', X_train, X_test)
+X_train, X_test = add_stats_for_manager('price_per_room', X_train, X_test)
+
 
 remove_columns(X_train)
 remove_columns(X_test)
@@ -348,4 +480,4 @@ preds = pd.DataFrame(preds)
 cols = ['low', 'medium', 'high']
 preds.columns = cols
 preds['listing_id'] = X_test.listing_id.values
-preds.to_csv('../sub/LtIsLit_XGB_brandon7.csv', index=None)
+preds.to_csv('../sub/LtIsLit_XGB_brandon11.csv', index=None)
