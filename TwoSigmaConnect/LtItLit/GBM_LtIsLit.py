@@ -10,16 +10,44 @@ from sklearn.metrics import accuracy_score
 
 
 
-def runGBM(clf, train_X, train_y, val_X):
+def runGBM(clf, train_X, train_y, val_X, plot_fi=False, feature_names=None):
     clf.fit(train_X, train_y)
     pred_test_y = clf.predict_proba(val_X)
     pred_classes = clf.predict(val_X)
     pred_train_y = clf.predict_proba(train_X)
+    if plot_fi:
+        coefs = pd.Series(clf.feature_importances_, feature_names).sort_values(ascending=False)
+        coefs.plot(kind='bar', title='Feature Importances')
+        plt.xticks(rotation=70)
+        plt.show()
     return pred_test_y, pred_classes, pred_train_y
 
 
-df_train = pd.read_csv('../data_prepared/train_ManBild_exp.csv')
-df_test = pd.read_csv('../data_prepared/test_ManBild_exp.csv')
+def merge_same_info(df, dic):
+    ''' Marge the smae columns with different names based on dic'''
+    for new_feature, old_features in dic:
+        merged_column = df[old_features].sum(axis=1)
+        merged_column[merged_column > 1] = 1
+        del df.old_features
+        df[new_feature] = merged_column
+    return df
+encoder = {'dishwasher': ['dishwasher', '_dishwasher_'],
+            'dryer': ['dryer_in_building', 'dryer_in_unit', 'dryer'],
+            'fitness': ['fitness', 'fitness_center', 'gym_in_building', 'gym'],
+            'doorman': ['ft_doorman', 'doorman'],
+            'garage': ['garage', 'full_service_garage'],
+            'high_ceiling': ['high_ceiling', 'high_ceilings'],
+            'highrise': ['highrise', 'hi_rise'],
+            'laundry_room': ['laundry_in_unit', 'laundry_room'],
+            'lounge': ['lounge', 'lounge_room'],
+            'outdoor': ['outdoor', 'outdoor_areas', 'outdoor_entertainment_space', 'outdoor_space'],
+            'parking': ['parking', 'parking_space'],
+            'pets_ok': ['_pets_ok_', 'pet_friendly'],
+            }
+
+
+df_train = pd.read_csv('../data_prepared/train_Man.csv')
+df_test = pd.read_csv('../data_prepared/test_Man.csv')
 
 
 predictors = [ i for i in df_train.columns if not i in ['interest_level']]
@@ -30,7 +58,7 @@ train_X = df_train[predictors].values
 train_y = df_train[targetname].values
 test_X = df_test[predictors].values
 
-parameters = {'n_estimators':800, 'learning_rate':0.05, 'min_samples_leaf':2,'max_features':'sqrt', 'subsample':0.8, 'random_state':10,
+parameters = {'n_estimators':800, 'learning_rate':0.1, 'min_samples_leaf':2,'max_features':'sqrt', 'subsample':0.7, 'random_state':10,
                 'max_depth':6}
 clf = GradientBoostingClassifier(**parameters)
 
@@ -46,7 +74,7 @@ for dev_index, val_index in kf.split(range(train_X.shape[0])):
     print('train logloss: {}'.format(log_loss(dev_y, pred_train_y)))
 print(sum(cv_scores)/len(cv_scores))
 
-preds, pred_classes, pred_train_y = runGBM(clf, train_X, train_y, test_X)
+preds, pred_classes, pred_train_y = runGBM(clf, train_X, train_y, test_X, plot_fi=True, feature_names=predictors)
 out_df = pd.DataFrame(preds)
 out_df.columns = ["low", "medium", "high"]
 out_df["listing_id"] = df_test.listing_id.values
