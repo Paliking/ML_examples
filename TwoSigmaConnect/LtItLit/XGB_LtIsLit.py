@@ -40,16 +40,16 @@ def runXGB(train_X, train_y, test_X, test_y=None, feature_names=None, seed_val=0
     return pred_test_y, model
 
 
-df_train = pd.read_csv('../data_prepared/train_ManBild.csv')
-df_test = pd.read_csv('../data_prepared/test_ManBild.csv')
+df_train = pd.read_csv('../data_prepared/train_ManStats.csv')
+df_test = pd.read_csv('../data_prepared/test_ManStats.csv')
 
 
-predictors = [ i for i in df_train.columns if not i in ['interest_level', 'manager_level_low', 'manager_level_medium', 'manager_level_high']]
+predictors = [ i for i in df_train.columns if not i in ['interest_level']]
 targetname = 'interest_level'
 
 train_X = df_train[predictors].values
 train_y = df_train[targetname].values
-test_X = df_test.values
+test_X = df_test[predictors].values
 
 
 
@@ -104,4 +104,4 @@ preds = pd.DataFrame(preds)
 cols = ['low', 'medium', 'high']
 preds.columns = cols
 preds['listing_id'] = df_test.listing_id.values
-preds.to_csv('../sub/xgb_LtIsLit_bild.csv', index=None)
+preds.to_csv('../sub/xgb_LtIsLit_MS1.csv', index=None)

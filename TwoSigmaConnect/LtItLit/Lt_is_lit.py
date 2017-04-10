@@ -238,8 +238,8 @@ def add_builing_level_weaker_leakage(train_df, test_df):
     return train_df, test_df
 
 
-def add_feature_groupby_managerlevel(target_col, train_df, test_df, n_folds=5):
-
+def add_feature_groupby_managerlevel(target_col, train_df, test_df, n_folds=5, excl_shorter=5):
+    print(test_df.shape)
     def count_for_InterestLevel(group, interest_level=0):
         return len(group[group==interest_level])
 
@@ -270,10 +270,15 @@ def add_feature_groupby_managerlevel(target_col, train_df, test_df, n_folds=5):
     # take 3 features to final train df
     new_features = ['{}_manager_level{}'.format(target_col, j) for j in interest_levels]
     train_df[new_features] = target_col_levels
-
-    # ---add features to real test set----
+    
+    # exclude too short groups
     df_temp = train_df.copy()
     grouped = df_temp.groupby(['manager_id', target_col])['interest_level']
+    ind2exclude = grouped.filter(lambda x: len(x) < excl_shorter).index
+    train_df.loc[ind2exclude, new_features] = np.nan
+
+    # ---add features to real test set----
+    # calculate target_manager_level for full train set
     for i_level in interest_levels:
         col_name = 'count_i{}'.format(i_level)
         df_temp[col_name] = grouped.transform(count_for_InterestLevel, interest_level=i_level)
@@ -281,10 +286,34 @@ def add_feature_groupby_managerlevel(target_col, train_df, test_df, n_folds=5):
     # devide columns for all 3 interest_levels by their sum
     folds_sums = [ 'count_i{}'.format(val) for val in interest_levels]
     target_col_levels = df_temp[folds_sums].divide(df_temp[folds_sums].sum(axis=1), axis=0)
-    print(target_col_levels)
-    test_df[new_features] = target_col_levels
+    target_col_levels[['manager_id', target_col]] = df_temp[['manager_id', target_col]]
+    target_col_levels.drop_duplicates(keep='first', inplace=True)
+    test_df_merged = test_df.merge(target_col_levels, how='left', on=['manager_id', target_col])
+    test_df[new_features] = test_df_merged[folds_sums]
+    print(test_df.shape)
+    print(test_df[new_features])
+    test_df.fillna(np.nan, inplace=True)
     return train_df, test_df
 
+
+def add_stats_for_manager(variable, train_df, test_df):
+    train = train_df.copy()
+    train['source'] = 'train'
+    test = test_df.copy()
+    test['source'] = 'test'
+    df = pd.concat([train, test])
+    grouped = df.groupby('manager_id')[variable]
+    # ind2exclude = grouped.filter(lambda x: len(x) < excl_shorter).index
+    # train_df.loc[ind2exclude, new_features] = np.nan
+    functions = ['sum', 'mean', 'count', 'median']
+    for function in functions:
+        col_name = 'man_{}_{}'.format(variable, function)
+        df[col_name] = grouped.transform(function)
+
+    new_features = [ 'man_{}_{}'.format(variable, j) for j in functions]
+    train_df[new_features] = df[df['source'] == 'train'][new_features]
+    test_df[new_features] = df[df['source'] == 'test'][new_features]
+    return train_df, test_df
 
 
 
@@ -300,9 +329,10 @@ X_test = pd.read_json("../input/test.json").sort_values(by="listing_id")
 
 # add manager skill
 # X_train, X_test = add_manager_skill(X_train, X_test) # not good; big leakage
-X_train, X_test = add_feature_groupby_managerlevel('bathrooms', X_train, X_test)
+# X_train, X_test = add_feature_groupby_managerlevel('bathrooms', X_train, X_test)
 X_train, X_test = add_manager_level_weaker_leakage(X_train, X_test)
-X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
+# X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
+X_train, X_test = add_stats_for_manager('price', X_train, X_test)
 
 # Make target integer, one hot encoded, calculate target priors
 X_train = X_train.replace({"interest_level": {"low": 0, "medium": 1, "high": 2}})
@@ -355,7 +385,7 @@ X_train = X_train.sort_index(axis=1).sort_values(by="listing_id")
 X_test = X_test.sort_index(axis=1).sort_values(by="listing_id")
 columns_to_drop = ["photos", "pred_0","pred_1", "pred_2", "description", "features", "created"]
 X_train.drop([c for c in X_train.columns if c in columns_to_drop], axis=1).\
-    to_csv("../data_prepared/train_ManBild_exp.csv", index=False, encoding='utf-8')
+    to_csv("../data_prepared/train_ManStats.csv", index=False, encoding='utf-8')
 X_test.drop([c for c in X_test.columns if c in columns_to_drop], axis=1).\
-    to_csv("../data_prepared/test_ManBild_exp.csv", index=False, encoding='utf-8')
+    to_csv("../data_prepared/test_ManStats.csv", index=False, encoding='utf-8')
  
