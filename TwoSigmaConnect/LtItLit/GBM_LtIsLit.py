@@ -31,19 +31,27 @@ def merge_same_info(df, dic):
         del df.old_features
         df[new_feature] = merged_column
     return df
+
+
 encoder = {'dishwasher': ['dishwasher', '_dishwasher_'],
             'dryer': ['dryer_in_building', 'dryer_in_unit', 'dryer'],
             'fitness': ['fitness', 'fitness_center', 'gym_in_building', 'gym'],
             'doorman': ['ft_doorman', 'doorman'],
-            'garage': ['garage', 'full_service_garage'],
+            'garage': ['garage', 'full_service_garage', 'site_garage'],
             'high_ceiling': ['high_ceiling', 'high_ceilings'],
             'highrise': ['highrise', 'hi_rise'],
-            'laundry_room': ['laundry_in_unit', 'laundry_room'],
-            'lounge': ['lounge', 'lounge_room'],
+            'laundry_room': ['laundry_in_unit', 'laundry_room', 'laundry_in_building', 'site_laundry'],
+            'lounge': ['lounge', 'lounge_room', 'residents_lounge'],
             'outdoor': ['outdoor', 'outdoor_areas', 'outdoor_entertainment_space', 'outdoor_space'],
-            'parking': ['parking', 'parking_space'],
-            'pets_ok': ['_pets_ok_', 'pet_friendly'],
-            }
+            'parking': ['parking', 'parking_space', 'site_parking', 'site_parking_lot'],
+            'pets_ok': ['_pets_ok_', 'pet_friendly', 'dogs_allowed', 'pets_on_approval'],
+            'post': ['post', 'post_war'], 
+            'roof_deck': ['roofdeck', 'roof_deck']
+            'swimming_pool': ['swimming_pool', 'pool'],
+            'washer': ['washer', 'washer_', 'washer_in_unit'],
+            'wheelchair_access': ['wheelchair_access', 'wheelchair_ramp']}
+
+exclude_cols = ['multi', 'pre']
 
 
 df_train = pd.read_csv('../data_prepared/train_Man.csv')
