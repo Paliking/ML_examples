@@ -1,15 +1,23 @@
+import os
+import sys
+import operator
 import numpy as np
 import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
+from scipy import sparse
+from sklearn import model_selection, preprocessing, ensemble
+from sklearn.metrics import log_loss
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.cross_validation import KFold
+from subprocess import check_output
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import StratifiedKFold
 import random
 from math import exp
-import xgboost as xgb
 import datetime as dt
+import pickle
+print(check_output(["ls", "../input"]).decode("utf8"))
 
-random.seed(444)
-np.random.seed(444)
+
 
 X_train = pd.read_json("../input/train.json")
 X_test = pd.read_json("../input/test.json")
@@ -19,10 +27,6 @@ X_train['interest_level'] = X_train['interest_level'].apply(lambda x: interest_l
 X_test['interest_level'] = -1
 
 X_train['price'].ix[X_train['price']>13000] = 13000
-
-X_test["bathrooms"].iloc[19671] = 1.5
-X_test["bathrooms"].iloc[22977] = 2.0
-X_test["bathrooms"].iloc[63719] = 2.0
 
 #add features
 feature_transform = CountVectorizer(stop_words='english', max_features=150)
@@ -437,7 +441,7 @@ def add_street_adress_level_weaker_leakage(train_df, test_df):
     return train_df, test_df
 
 
-def add_stats_for_manager(variable, train_df, test_df, funcs=None):
+def add_stats_for_manager(variable, train_df, test_df):
     '''
     Groupby manager_id and calculate 'sum', 'mean', 'count', 'median' of selected variable.
     '''
@@ -449,11 +453,7 @@ def add_stats_for_manager(variable, train_df, test_df, funcs=None):
     grouped = df.groupby('manager_id')[variable]
     # ind2exclude = grouped.filter(lambda x: len(x) < excl_shorter).index
     # train_df.loc[ind2exclude, new_features] = np.nan
-    if funcs is None:
-        functions = ['sum', 'mean', 'median']
-    else:
-        functions = funcs
-
+    functions = ['sum', 'mean', 'count', 'median']
     for function in functions:
         col_name = 'man_{}_{}'.format(variable, function)
         df[col_name] = grouped.transform(function)
@@ -551,11 +551,11 @@ def add_percentils(train_df, test_df):
     return train_df, test_df
 
 
-# def add_
+
 
 print("Starting transformations")
 
-# X_train, X_test = add_percentils(X_train, X_test)
+X_train, X_test = add_percentils(X_train, X_test)
 
 
 X_train = transform_data(X_train)    
@@ -568,14 +568,13 @@ transform_categorical_data()
 
 X_train, X_test = add_manager_level_weaker_leakage(X_train, X_test)
 X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
-# X_train, X_test = add_adress_level_weaker_leakage(X_train, X_test)
-# X_train, X_test = add_street_adress_level_weaker_leakage(X_train, X_test)
-X_train, X_test = add_stats_for_manager('price', X_train, X_test, funcs=['sum', 'mean', 'median', 'count'])
+X_train, X_test = add_adress_level_weaker_leakage(X_train, X_test)
+X_train, X_test = add_street_adress_level_weaker_leakage(X_train, X_test)
+X_train, X_test = add_stats_for_manager('price', X_train, X_test)
 X_train, X_test = add_stats_for_manager('bedrooms', X_train, X_test)
 X_train, X_test = add_stats_for_manager('bathrooms', X_train, X_test)
 X_train, X_test = add_stats_for_manager('price_per_room', X_train, X_test)
-# X_train, X_test = add_stats_for_manager('bedBathSum', X_train, X_test)
-X_train, X_test = add_stats_for_manager('listing_id', X_train, X_test, funcs=['mean', 'median'])
+X_train, X_test = add_stats_for_manager('bedBathSum', X_train, X_test)
 
 
 # X_train = merge_same_info(X_train, encoder, exclude_cols)
@@ -584,69 +583,20 @@ X_train, X_test = add_stats_for_manager('listing_id', X_train, X_test, funcs=['m
 remove_columns(X_train)
 remove_columns(X_test)
 
-# print("Start fitting...")
-
-# param = {}
-# param['objective'] = 'multi:softprob'
-# param['eta'] = 0.04
-# param['max_depth'] = 4
-# param['silent'] = 1
-# param['num_class'] = 3
-# param['eval_metric'] = "mlogloss"
-# param['min_child_weight'] = 1
-# param['subsample'] = 0.7
-# param['colsample_bytree'] = 0.7
-# param['seed'] = 321
-# param['nthread'] = 8
-# num_rounds = 1000
-
-# xgtrain = xgb.DMatrix(X_train, label=y)
-# clf = xgb.train(param, xgtrain, num_rounds)
-
-# print("Fitted")
-
-# def prepare_submission(model):
-#     xgtest = xgb.DMatrix(X_test)
-#     preds = model.predict(xgtest)    
-#     sub = pd.DataFrame(data = {'listing_id': X_test['listing_id'].ravel()})
-#     sub['low'] = preds[:, 0]
-#     sub['medium'] = preds[:, 1]
-#     sub['high'] = preds[:, 2]
-#     sub.to_csv("../sub/submission.csv", index = False, header = True)
-
-# prepare_submission(clf)
-
-# option 2, automatic detection of the best num_rounds
-train_X = X_train.values
-train_y = y
-test_X = X_test.values
 
 
-NFOLDS = 5
+# train_X = X_train.values
+# train_y = y
+# test_X = X_test.values
 
-params = {
-    'eta':.1,
-    'colsample_bytree':0.8,
-    'subsample':.8,
-    'seed':444,
-    'max_depth':6,
-    'objective':'multi:softprob',
-    'eval_metric':'mlogloss',
-    'num_class':3,
-    'silent':1
-}
+# for other models than xgb
+X_train.replace([np.inf, -np.inf], np.nan, inplace=True)
+X_test.replace([np.inf, -np.inf], np.nan, inplace=True)
+X_train.fillna(-999, inplace=True)
+X_test.fillna(-999, inplace=True)
 
-dtrain = xgb.DMatrix(data=train_X, label=train_y)
-dtest = xgb.DMatrix(data=test_X)
 
-bst = xgb.cv(params, dtrain, 10000, NFOLDS, early_stopping_rounds=50, verbose_eval=25)
-best_rounds = np.argmin(bst['test-mlogloss-mean'])
-bst = xgb.train(params, dtrain, best_rounds)
 
-preds = bst.predict(dtest)
-preds = pd.DataFrame(preds)
 
-cols = ['low', 'medium', 'high']
-preds.columns = cols
-preds['listing_id'] = X_test.listing_id.values
-preds.to_csv('../sub/LtIsLit_XGB_brandon24.csv', index=None)
+with open('data4stack/data_perpared_all2.pickle', 'wb') as handle:
+    pickle.dump([X_train, y, X_test], handle)
