@@ -296,7 +296,7 @@ def add_feature_groupby_managerlevel(target_col, train_df, test_df, n_folds=5, e
     return train_df, test_df
 
 
-def add_stats_for_manager(variable, train_df, test_df):
+def add_stats_for_manager(variable, train_df, test_df, count=False):
     train = train_df.copy()
     train['source'] = 'train'
     test = test_df.copy()
@@ -305,7 +305,10 @@ def add_stats_for_manager(variable, train_df, test_df):
     grouped = df.groupby('manager_id')[variable]
     # ind2exclude = grouped.filter(lambda x: len(x) < excl_shorter).index
     # train_df.loc[ind2exclude, new_features] = np.nan
-    functions = ['sum', 'mean', 'count', 'median']
+    if count:
+        functions = ['sum', 'mean', 'count', 'median']
+    else:
+        functions = ['sum', 'mean', 'median']
     for function in functions:
         col_name = 'man_{}_{}'.format(variable, function)
         df[col_name] = grouped.transform(function)
@@ -332,7 +335,8 @@ X_test = pd.read_json("../input/test.json").sort_values(by="listing_id")
 # X_train, X_test = add_feature_groupby_managerlevel('bathrooms', X_train, X_test)
 X_train, X_test = add_manager_level_weaker_leakage(X_train, X_test)
 # X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
-X_train, X_test = add_stats_for_manager('price', X_train, X_test)
+X_train, X_test = add_stats_for_manager('price', X_train, X_test, count=True)
+X_train, X_test = add_stats_for_manager('listing_id', X_train, X_test)
 
 # Make target integer, one hot encoded, calculate target priors
 X_train = X_train.replace({"interest_level": {"low": 0, "medium": 1, "high": 2}})
@@ -385,7 +389,7 @@ X_train = X_train.sort_index(axis=1).sort_values(by="listing_id")
 X_test = X_test.sort_index(axis=1).sort_values(by="listing_id")
 columns_to_drop = ["photos", "pred_0","pred_1", "pred_2", "description", "features", "created"]
 X_train.drop([c for c in X_train.columns if c in columns_to_drop], axis=1).\
-    to_csv("../data_prepared/train_ManStats.csv", index=False, encoding='utf-8')
+    to_csv("../data_prepared/train_ManStatsList.csv", index=False, encoding='utf-8')
 X_test.drop([c for c in X_test.columns if c in columns_to_drop], axis=1).\
-    to_csv("../data_prepared/test_ManStats.csv", index=False, encoding='utf-8')
+    to_csv("../data_prepared/test_ManStatsList.csv", index=False, encoding='utf-8')
  
