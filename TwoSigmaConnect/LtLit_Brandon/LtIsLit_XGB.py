@@ -566,6 +566,7 @@ def add_future_count(train_df, test_df, days_list, positive=True):
     test = test_df.copy()
     test['source'] = 'test'
     df = pd.concat([train, test])
+    df['created'] = pd.to_datetime(df["created"])
     ref_days = df.groupby(df['created'].dt.date)['created'].count()
     new_features = [ 'future_count_{}'.format(i) for i in days_list ]
 
@@ -603,8 +604,8 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
     test['source'] = 'test'
     df = pd.concat([train, test])
     new_features = [ 'future_count_gr{}_{}'.format(by, i) for i in days_list ]
-    # df['created'] = pd.to_datetime(df["created"])
-    for gr_name, df_group in df.groupby(by):
+    df['created'] = pd.to_datetime(df["created"])
+    for gr_name, df_group in df.copy().groupby(by):
         idx_group = df_group.index
         ref_days = df_group.groupby(df_group['created'].dt.date)['created'].count()
 
@@ -616,7 +617,7 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
 
         for n_days in days_list:
             new_feature = 'future_count_gr{}_{}'.format(by, n_days)
-            df.ix[idx_group, new_feature] = df_group['created'].apply(get_count, n_days=n_days)
+            df.loc[idx_group, new_feature] = df_group['created'].apply(get_count, n_days=n_days)
 
         # replace last incomplete dates with means
         if positive:
@@ -626,7 +627,7 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
             df_sub = df.ix[idx_group]
             mask = (df_sub['created'] > first_bad_date) & (df_sub['created'] < last_date+dt.timedelta(days=1))
             idx_group_rewrite = idx_group[mask]
-            df.loc[idx_group_rewrite, new_features] = df_sub[new_features].mean().values
+            df.loc[idx_group_rewrite, new_features] = df_sub[new_features].mean()
 
     train_df[new_features] = df[df['source'] == 'train'][new_features]
     test_df[new_features] = df[df['source'] == 'test'][new_features]
@@ -636,6 +637,10 @@ print("Starting transformations")
 
 # X_train, X_test = add_percentils(X_train, X_test)
 
+# # counts of flats for n_days from current day to the future
+X_train, X_test = add_future_count(X_train, X_test, [1,4,8])
+X_train, X_test = add_future_count(X_train, X_test, [-2], positive=False)
+X_train, X_test = add_future_count_groupedby('bedrooms', X_train, X_test, [1,3])
 
 X_train = transform_data(X_train)    
 X_test = transform_data(X_test) 
@@ -656,14 +661,11 @@ X_train, X_test = add_stats_for_manager('price_per_room', X_train, X_test)
 # X_train, X_test = add_stats_for_manager('bedBathSum', X_train, X_test)
 X_train, X_test = add_stats_for_manager('listing_id', X_train, X_test, funcs=['mean', 'median'])
 
-# counts of flats for n_days from current day to the future
-X_train, X_test = add_future_count(X_train, X_test, [1,4,8])
-X_train, X_test = add_future_count(X_train, X_test, [-2], positive=False)
-X_train, X_test = add_future_count_groupedby('bedrooms, 'X_train, X_test, [1,3])
 
 
-X_train = merge_same_info(X_train, encoder, exclude_cols)
-X_test = merge_same_info(X_test, encoder, exclude_cols)
+
+# X_train = merge_same_info(X_train, encoder, exclude_cols)
+# X_test = merge_same_info(X_test, encoder, exclude_cols)
 
 remove_columns(X_train)
 remove_columns(X_test)
@@ -710,7 +712,7 @@ NFOLDS = 5
 
 params = {
     'eta':.1,
-    'colsample_bytree':0.8,
+    'colsample_bytree':1,
     'subsample':.8,
     'seed':444,
     'max_depth':6,
@@ -733,4 +735,4 @@ preds = pd.DataFrame(preds)
 cols = ['low', 'medium', 'high']
 preds.columns = cols
 preds['listing_id'] = X_test.listing_id.values
-preds.to_csv('../sub/LtIsLit_XGB_brandon24.csv', index=None)
+preds.to_csv('../sub/LtIsLit_XGB_brandon26.csv', index=None)
