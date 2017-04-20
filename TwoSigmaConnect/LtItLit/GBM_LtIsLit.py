@@ -18,7 +18,7 @@ def runGBM(clf, train_X, train_y, val_X, plot_fi=False, feature_names=None):
     if plot_fi:
         coefs = pd.Series(clf.feature_importances_, feature_names).sort_values(ascending=False)
         coefs.plot(kind='bar', title='Feature Importances')
-        # plt.xticks(rotation=70)
+        plt.xticks(rotation=0)
         plt.show()
     return pred_test_y, pred_classes, pred_train_y
 
@@ -54,8 +54,8 @@ encoder = {'dishwasher': ['dishwasher', '_dishwasher_'],
 exclude_cols = ['multi', 'pre']
 
 
-df_train = pd.read_csv('../data_prepared/train_ManStatsList.csv')
-df_test = pd.read_csv('../data_prepared/test_ManStatsList.csv')
+df_train = pd.read_csv('../data_prepared/train_ManStatsListFC.csv')
+df_test = pd.read_csv('../data_prepared/test_ManStatsListFC.csv')
 
 
 predictors = [ i for i in df_train.columns if not i in ['interest_level']]
@@ -66,7 +66,7 @@ train_X = df_train[predictors].values
 train_y = df_train[targetname].values
 test_X = df_test[predictors].values
 
-parameters = {'n_estimators':800, 'learning_rate':0.1, 'min_samples_leaf':2,'max_features':'sqrt', 'subsample':0.7, 'random_state':10,
+parameters = {'n_estimators':300, 'learning_rate':0.1, 'min_samples_leaf':2,'max_features':'sqrt', 'subsample':0.7, 'random_state':10,
                 'max_depth':6}
 clf = GradientBoostingClassifier(**parameters)
 
@@ -86,5 +86,5 @@ preds, pred_classes, pred_train_y = runGBM(clf, train_X, train_y, test_X, plot_f
 out_df = pd.DataFrame(preds)
 out_df.columns = ["low", "medium", "high"]
 out_df["listing_id"] = df_test.listing_id.values
-# out_df.to_csv("../sub/gbm_ltislit_MBroom.csv", index=False)
+# out_df.to_csv("../sub/gbm_ltislit_ManStatsFC.csv", index=False)
 

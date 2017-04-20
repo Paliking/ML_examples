@@ -19,7 +19,7 @@ import pickle
 
 
 
-with open('data4stack/data_perpared_all.pickle', 'rb') as handle:
+with open('data4stack/data_perpared_all3.pickle', 'rb') as handle:
     sets_prepared = pickle.load(handle)
 
 
@@ -117,7 +117,7 @@ xgb_params = {
     'min_child_weight': 1,
     'subsample': 0.8,
     'colsample_bytree': 0.8,
-    'nrounds': 3000
+    'nrounds': 3200
 }
 
 xgb_params2 = {
@@ -133,17 +133,43 @@ xgb_params2 = {
     'silent':1
 }
 
-
 xgb_params3 = {
     'objective': 'multi:softprob',
-    'eta':0.1,
+    'eta':0.02,
     'max_depth':4,
     'num_class':3,
     'eval_metric':"mlogloss",
     'min_child_weight': 1,
     'subsample': 0.7,
     'colsample_bytree': 0.9,
-    'nrounds': 750,
+    'nrounds': 1600,
+    'silent':1
+}
+
+xgb_params4 = {
+    'objective': 'multi:softprob',
+    'eta':0.05,
+    'max_depth':7,
+    'num_class':3,
+    'eval_metric':"mlogloss",
+    'min_child_weight': 1,
+    'subsample': 0.7,
+    'colsample_bytree': 0.9,
+    'nrounds': 1500,
+    'silent':1
+}
+
+
+xgb_params5 = {
+    'objective': 'multi:softprob',
+    'eta':0.02,
+    'max_depth':6,
+    'num_class':3,
+    'eval_metric':"mlogloss",
+    'min_child_weight': 1,
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
+    'nrounds': 1500,
     'silent':1
 }
 
@@ -163,6 +189,8 @@ building_level = []
 display_address_level = []
 man_stats = []
 street_adress = []
+future_count = []
+future_count_gr = []
 for i in X_train.columns:
     print(i)
     if i.startswith('top'):
@@ -177,6 +205,10 @@ for i in X_train.columns:
         man_stats.append(i)
     elif i.startswith('street_adress'):
         street_adress.append(i)
+    elif i.startswith('future_count_gr'):
+        future_count_gr.append(i)
+    elif i.startswith('future_count_'):
+        future_count.append(i)
     else:
         pass
 
@@ -185,6 +217,8 @@ xg = XgbWrapper(seed=SEED, params=xgb_params)
 # et = SklearnWrapper(clf=ExtraTreesClassifier, seed=SEED, params=et_params)
 xg2 = XgbWrapper(seed=SEED, params=xgb_params2)
 xg3 = XgbWrapper(seed=SEED, params=xgb_params3)
+xg4 = XgbWrapper(seed=SEED, params=xgb_params4)
+xg5 = XgbWrapper(seed=SEED, params=xgb_params5)
 # rf = SklearnWrapper(clf=RandomForestClassifier, seed=SEED, params=rf_params)
 
 # xg_oof_train, xg_oof_test = get_oof(xg, x_train, y_train, x_test)
@@ -194,14 +228,18 @@ xg3 = XgbWrapper(seed=SEED, params=xgb_params3)
 # xg3_oof_train, xg3_oof_test = get_oof(xg3, x_train, y_train, x_test)
 
 
-features1 = [ i for i in X_train.columns if i not in display_address_level+building_level+top_mans_build+street_adress]
-features2 = [ i for i in X_train.columns if i not in manager_level+man_stats+top_mans_build]
-# features3 = [ i for i in X_train.columns if i not in manager_level+man_stats+top_mans_build]
+features1 = [ i for i in X_train.columns if i not in display_address_level+building_level+top_mans_build+street_adress+future_count_gr+future_count]
+features2 = [ i for i in X_train.columns if i not in manager_level+man_stats+top_mans_build+future_count_gr+future_count]
+# features3 = [ i for i in X_train.columns if i not in manager_level+display_address_level+building_level+top_mans_build+street_adress]
+features4 = [ i for i in X_train.columns if i not in manager_level+display_address_level+building_level+top_mans_build+street_adress]
+# features5 = [ i for i in X_train.columns if i not in manager_level+display_address_level+building_level+top_mans_build+street_adress]
 
 xg_oof_train, xg_oof_test = get_oof(xg, X_train[features1].values, y_train, X_test[features1].values)
 # et_oof_train, et_oof_test = get_oof(et, x_train, y_train, x_test)
 xg2_oof_train, xg2_oof_test = get_oof(xg2, X_train[features2].values, y_train, X_test[features2].values)
 xg3_oof_train, xg3_oof_test = get_oof(xg3, x_train, y_train, x_test)
+xg4_oof_train, xg4_oof_test = get_oof(xg4, X_train[features4].values, y_train, X_test[features4].values)
+xg5_oof_train, xg5_oof_test = get_oof(xg5, X_train.values, y_train, X_test.values)
 
 
 print("XG-CV: {}".format(log_loss(y_train, xg_oof_train)))
@@ -209,10 +247,12 @@ print("XG-CV: {}".format(log_loss(y_train, xg_oof_train)))
 # print("RF-CV: {}".format(log_loss(y_train, rf_oof_train)))
 print("XG2-CV: {}".format(log_loss(y_train, xg2_oof_train)))
 print("XG3-CV: {}".format(log_loss(y_train, xg3_oof_train)))
+print("XG4-CV: {}".format(log_loss(y_train, xg4_oof_train)))
+print("XG5-CV: {}".format(log_loss(y_train, xg5_oof_train)))
 
 
-x_train = np.concatenate((xg_oof_train, xg2_oof_train, xg3_oof_train), axis=1)
-x_test = np.concatenate((xg_oof_test, xg2_oof_test, xg3_oof_test), axis=1)
+x_train = np.concatenate((xg_oof_train, xg2_oof_train, xg3_oof_train, xg4_oof_train, xg5_oof_train), axis=1)
+x_test = np.concatenate((xg_oof_test, xg2_oof_test, xg3_oof_test, xg4_oof_test, xg5_oof_test), axis=1)
 
 print("{},{}".format(x_train.shape, x_test.shape))
 

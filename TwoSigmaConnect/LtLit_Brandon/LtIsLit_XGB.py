@@ -131,13 +131,13 @@ def transform_data(X):
 
     # added from other script
     X["created"] = pd.to_datetime(X["created"])
-    X["created_year"] = X["created"].dt.year
+    # X["created_year"] = X["created"].dt.year
     X["created_month"] = X["created"].dt.month
     X["created_day"] = X["created"].dt.day
     X['created_hour'] = X["created"].dt.hour
     X['created_weekday'] = X['created'].dt.weekday
     X['created_week'] = X['created'].dt.week
-    X['created_quarter'] = X['created'].dt.quarter
+    # X['created_quarter'] = X['created'].dt.quarter
     X['created_weekend'] = ((X['created_weekday'] == 5) & (X['created_weekday'] == 6))
     X['created_wd'] = ((X['created_weekday'] != 5) & (X['created_weekday'] != 6))
     X['created'] = X['created'].map(lambda x: float((x - dt.datetime(1899, 12, 30)).days) + (float((x - dt.datetime(1899, 12, 30)).seconds) / 86400))
@@ -551,7 +551,86 @@ def add_percentils(train_df, test_df):
     return train_df, test_df
 
 
-# def add_
+def add_future_count(train_df, test_df, days_list, positive=True):
+    '''
+    days_list: list of integers; integer represents number of days from current day to the future for calculating
+                    the count.
+                    i.e. [1,8,...]      1 - calculate count for current day only,  
+                                        8 - calculate count for current day with next 7 days
+                    i.e. [0,-1,..]      0 - from yesterday and today (incl)
+                                        -1 from day before yesterday to today (incl)
+    positive: bool; for positive values are incomplete days replaced by means (for negative not yet)
+    '''
+    train = train_df.copy()
+    train['source'] = 'train'
+    test = test_df.copy()
+    test['source'] = 'test'
+    df = pd.concat([train, test])
+    ref_days = df.groupby(df['created'].dt.date)['created'].count()
+    new_features = [ 'future_count_{}'.format(i) for i in days_list ]
+
+    def get_count(row, n_days=1):
+        curr_date = row.date()
+        last_date = curr_date + dt.timedelta(days=n_days-1)
+        count = ref_days[curr_date:last_date].sum()
+        return count
+
+    for n_days in days_list:
+        new_feature = 'future_count_{}'.format(n_days)
+        df[new_feature] = df['created'].apply(get_count, n_days=n_days)
+
+    # replace last incomplete dates with means
+    if positive:
+        last_date = df['created'].max().date()
+        first_bad_date = last_date - dt.timedelta(days=n_days-2)
+        last_good_day = last_date - dt.timedelta(days=n_days-1)
+        mask = (df['created'] > first_bad_date) & (df['created'] < last_date+dt.timedelta(days=1))
+        df.loc[mask, new_features] = df[new_features].mean().values
+
+    train_df[new_features] = df[df['source'] == 'train'][new_features]
+    test_df[new_features] = df[df['source'] == 'test'][new_features]
+    return train_df, test_df
+
+
+def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
+    '''
+    the same as add_future_count, but grouped by column.
+    by: str; column name for groupby function
+    '''
+    train = train_df.copy()
+    train['source'] = 'train'
+    test = test_df.copy()
+    test['source'] = 'test'
+    df = pd.concat([train, test])
+    new_features = [ 'future_count_gr{}_{}'.format(by, i) for i in days_list ]
+    # df['created'] = pd.to_datetime(df["created"])
+    for gr_name, df_group in df.groupby(by):
+        idx_group = df_group.index
+        ref_days = df_group.groupby(df_group['created'].dt.date)['created'].count()
+
+        def get_count(row, n_days=1):
+            curr_date = row.date()
+            last_date = curr_date + dt.timedelta(days=n_days-1)
+            count = ref_days[curr_date:last_date].sum()
+            return count
+
+        for n_days in days_list:
+            new_feature = 'future_count_gr{}_{}'.format(by, n_days)
+            df.ix[idx_group, new_feature] = df_group['created'].apply(get_count, n_days=n_days)
+
+        # replace last incomplete dates with means
+        if positive:
+            last_date = df_group['created'].max().date()
+            first_bad_date = last_date - dt.timedelta(days=n_days-2)
+            last_good_day = last_date - dt.timedelta(days=n_days-1)
+            df_sub = df.ix[idx_group]
+            mask = (df_sub['created'] > first_bad_date) & (df_sub['created'] < last_date+dt.timedelta(days=1))
+            idx_group_rewrite = idx_group[mask]
+            df.loc[idx_group_rewrite, new_features] = df_sub[new_features].mean().values
+
+    train_df[new_features] = df[df['source'] == 'train'][new_features]
+    test_df[new_features] = df[df['source'] == 'test'][new_features]
+    return train_df, test_df
 
 print("Starting transformations")
 
@@ -577,9 +656,14 @@ X_train, X_test = add_stats_for_manager('price_per_room', X_train, X_test)
 # X_train, X_test = add_stats_for_manager('bedBathSum', X_train, X_test)
 X_train, X_test = add_stats_for_manager('listing_id', X_train, X_test, funcs=['mean', 'median'])
 
+# counts of flats for n_days from current day to the future
+X_train, X_test = add_future_count(X_train, X_test, [1,4,8])
+X_train, X_test = add_future_count(X_train, X_test, [-2], positive=False)
+X_train, X_test = add_future_count_groupedby('bedrooms, 'X_train, X_test, [1,3])
 
-# X_train = merge_same_info(X_train, encoder, exclude_cols)
-# X_test = merge_same_info(X_test, encoder, exclude_cols)
+
+X_train = merge_same_info(X_train, encoder, exclude_cols)
+X_test = merge_same_info(X_test, encoder, exclude_cols)
 
 remove_columns(X_train)
 remove_columns(X_test)
