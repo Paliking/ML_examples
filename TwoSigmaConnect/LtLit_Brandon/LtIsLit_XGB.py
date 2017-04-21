@@ -13,6 +13,7 @@ np.random.seed(444)
 
 X_train = pd.read_json("../input/train.json")
 X_test = pd.read_json("../input/test.json")
+leak_file = "../input/listing_image_time.csv"
 
 interest_level_map = {'low': 0, 'medium': 1, 'high': 2}
 X_train['interest_level'] = X_train['interest_level'].apply(lambda x: interest_level_map[x])
@@ -34,6 +35,33 @@ train_size = len(X_train)
 low_count = len(X_train[X_train['interest_level'] == 0])
 medium_count = len(X_train[X_train['interest_level'] == 1])
 high_count = len(X_train[X_train['interest_level'] == 2])
+
+
+
+def add_leakage(df, leak_file):
+    # add leak from pictures
+    image_date = pd.read_csv(leak_file)
+
+    # rename columns so you can join tables later on
+    image_date.columns = ["listing_id", "time_stamp"]
+
+    # reassign the only one timestamp from April, all others from Oct/Nov
+    image_date.loc[80240,"time_stamp"] = 1478129766 
+
+    image_date["img_date"]                  = pd.to_datetime(image_date["time_stamp"], unit="s")
+    image_date["img_days_passed"]           = (image_date["img_date"].max() - image_date["img_date"]).astype("timedelta64[D]").astype(int)
+    image_date["img_date_month"]            = image_date["img_date"].dt.month
+    image_date["img_date_week"]             = image_date["img_date"].dt.week
+    image_date["img_date_day"]              = image_date["img_date"].dt.day
+    image_date["img_date_dayofweek"]        = image_date["img_date"].dt.dayofweek
+    image_date["img_date_dayofyear"]        = image_date["img_date"].dt.dayofyear
+    image_date["img_date_hour"]             = image_date["img_date"].dt.hour
+    image_date["img_date_monthBeginMidEnd"] = image_date["img_date_day"].apply(lambda x: 1 if x<10 else 2 if x<20 else 3)
+    del image_date["img_date"]
+
+    df = pd.merge(df, image_date, on="listing_id", how="left")
+    return df
+
 
 def find_objects_with_only_one_record(feature_name):
     temp = pd.concat([X_train[feature_name].reset_index(), 
@@ -580,20 +608,22 @@ def add_future_count(train_df, test_df, days_list, positive=True):
         new_feature = 'future_count_{}'.format(n_days)
         df[new_feature] = df['created'].apply(get_count, n_days=n_days)
 
-    # replace last incomplete dates with means
-    if positive:
-        last_date = df['created'].max().date()
-        first_bad_date = last_date - dt.timedelta(days=n_days-2)
-        last_good_day = last_date - dt.timedelta(days=n_days-1)
-        mask = (df['created'] > first_bad_date) & (df['created'] < last_date+dt.timedelta(days=1))
-        df.loc[mask, new_features] = df[new_features].mean().values
+        # replace last incomplete dates with means
+        if positive:
+            last_date = df['created'].max().date()
+            first_bad_date = last_date - dt.timedelta(days=n_days-2)
+            last_good_day = last_date - dt.timedelta(days=n_days-1)
+            mask = (df['created'] > first_bad_date) & (df['created'] < last_date+dt.timedelta(days=1))
+            df.loc[mask, new_feature] = df[new_feature].mean()
 
     train_df[new_features] = df[df['source'] == 'train'][new_features]
     test_df[new_features] = df[df['source'] == 'test'][new_features]
+    print('nans in train: ', train_df[new_features].isnull().any().any())
+    print('nans in test: ', test_df[new_features].isnull().any().any())
     return train_df, test_df
 
 
-def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
+def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True, price_mode=False):
     '''
     the same as add_future_count, but grouped by column.
     by: str; column name for groupby function
@@ -605,7 +635,10 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
     df = pd.concat([train, test])
     new_features = [ 'future_count_gr{}_{}'.format(by, i) for i in days_list ]
     df['created'] = pd.to_datetime(df["created"])
+    if price_mode:
+        df['price_quantiles'] = pd.qcut(df['price'], 5, labels=False)
     for gr_name, df_group in df.copy().groupby(by):
+        last_date = df_group['created'].max().date()
         idx_group = df_group.index
         ref_days = df_group.groupby(df_group['created'].dt.date)['created'].count()
 
@@ -619,18 +652,19 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
             new_feature = 'future_count_gr{}_{}'.format(by, n_days)
             df.loc[idx_group, new_feature] = df_group['created'].apply(get_count, n_days=n_days)
 
-        # replace last incomplete dates with means
-        if positive:
-            last_date = df_group['created'].max().date()
-            first_bad_date = last_date - dt.timedelta(days=n_days-2)
-            last_good_day = last_date - dt.timedelta(days=n_days-1)
-            df_sub = df.ix[idx_group]
-            mask = (df_sub['created'] > first_bad_date) & (df_sub['created'] < last_date+dt.timedelta(days=1))
-            idx_group_rewrite = idx_group[mask]
-            df.loc[idx_group_rewrite, new_features] = df_sub[new_features].mean()
+            # replace last incomplete dates with means
+            if positive:
+                first_bad_date = last_date - dt.timedelta(days=n_days-2)
+                last_good_day = last_date - dt.timedelta(days=n_days-1)
+                df_sub = df.loc[idx_group]
+                mask = (df_sub['created'] > first_bad_date) & (df_sub['created'] < last_date+dt.timedelta(days=1))
+                idx_group_rewrite = idx_group[mask]
+                df.loc[idx_group_rewrite, new_feature] = df_sub[new_feature].mean()
 
     train_df[new_features] = df[df['source'] == 'train'][new_features]
     test_df[new_features] = df[df['source'] == 'test'][new_features]
+    print('nans in train: ', train_df[new_features].isnull().any().any())
+    print('nans in test: ', test_df[new_features].isnull().any().any())
     return train_df, test_df
 
 print("Starting transformations")
@@ -641,6 +675,8 @@ print("Starting transformations")
 X_train, X_test = add_future_count(X_train, X_test, [1,4,8])
 X_train, X_test = add_future_count(X_train, X_test, [-2], positive=False)
 X_train, X_test = add_future_count_groupedby('bedrooms', X_train, X_test, [1,3])
+X_train, X_test = add_future_count_groupedby('price_quantiles', X_train, X_test, [1,3], price_mode=True)
+
 
 X_train = transform_data(X_train)    
 X_test = transform_data(X_test) 
@@ -651,7 +687,7 @@ normalize_high_cordiality_data()
 transform_categorical_data()
 
 X_train, X_test = add_manager_level_weaker_leakage(X_train, X_test)
-X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
+# X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
 # X_train, X_test = add_adress_level_weaker_leakage(X_train, X_test)
 # X_train, X_test = add_street_adress_level_weaker_leakage(X_train, X_test)
 X_train, X_test = add_stats_for_manager('price', X_train, X_test, funcs=['sum', 'mean', 'median', 'count'])
@@ -659,9 +695,10 @@ X_train, X_test = add_stats_for_manager('bedrooms', X_train, X_test)
 X_train, X_test = add_stats_for_manager('bathrooms', X_train, X_test)
 X_train, X_test = add_stats_for_manager('price_per_room', X_train, X_test)
 # X_train, X_test = add_stats_for_manager('bedBathSum', X_train, X_test)
-X_train, X_test = add_stats_for_manager('listing_id', X_train, X_test, funcs=['mean', 'median'])
+# X_train, X_test = add_stats_for_manager('listing_id', X_train, X_test, funcs=['mean', 'median'])
 
-
+X_train = add_leakage(X_train, leak_file)
+X_test = add_leakage(X_test, leak_file)
 
 
 # X_train = merge_same_info(X_train, encoder, exclude_cols)

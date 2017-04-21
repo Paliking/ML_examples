@@ -320,19 +320,24 @@ def add_stats_for_manager(variable, train_df, test_df, count=False):
 
 
 
-def add_future_count(train_df, test_df, days_list):
+def add_future_count(train_df, test_df, days_list, positive=True):
     '''
     days_list: list of integers; integer represents number of days from current day to the future for calculating
                     the count.
-                    i.e. [1,8,...] means: 1 - calculate count for current day only,  
+                    i.e. [1,8,...]      1 - calculate count for current day only,  
                                         8 - calculate count for current day with next 7 days
+                    i.e. [0,-1,..]      0 - from yesterday and today (incl)
+                                        -1 from day before yesterday to today (incl)
+    positive: bool; for positive values are incomplete days replaced by means (for negative not yet)
     '''
     train = train_df.copy()
     train['source'] = 'train'
     test = test_df.copy()
     test['source'] = 'test'
     df = pd.concat([train, test])
+    df['created'] = pd.to_datetime(df["created"])
     ref_days = df.groupby(df['created'].dt.date)['created'].count()
+    new_features = [ 'future_count_{}'.format(i) for i in days_list ]
 
     def get_count(row, n_days=1):
         curr_date = row.date()
@@ -343,20 +348,23 @@ def add_future_count(train_df, test_df, days_list):
     for n_days in days_list:
         new_feature = 'future_count_{}'.format(n_days)
         df[new_feature] = df['created'].apply(get_count, n_days=n_days)
-    new_features = [ i for i in df.columns.values if i.startswith('future_count_') ]
 
-    # replace last incoplate dates with means
-    last_date = df['created'].max().date()
-    first_bad_date = last_date - dt.timedelta(days=n_days-2)
-    last_good_day = last_date - dt.timedelta(days=n_days-1)
-    mask = (df['created'] > first_bad_date) & (df['created'] < last_date+dt.timedelta(days=1))
-    df.loc[mask, new_features] = df[new_features].mean().values
+        # replace last incomplete dates with means
+        if positive:
+            last_date = df['created'].max().date()
+            first_bad_date = last_date - dt.timedelta(days=n_days-2)
+            last_good_day = last_date - dt.timedelta(days=n_days-1)
+            mask = (df['created'] > first_bad_date) & (df['created'] < last_date+dt.timedelta(days=1))
+            df.loc[mask, new_feature] = df[new_feature].mean()
 
     train_df[new_features] = df[df['source'] == 'train'][new_features]
     test_df[new_features] = df[df['source'] == 'test'][new_features]
+    print('nans in train: ', train_df[new_features].isnull().any().any())
+    print('nans in test: ', test_df[new_features].isnull().any().any())
     return train_df, test_df
 
-def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
+
+def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True, price_mode=False):
     '''
     the same as add_future_count, but grouped by column.
     by: str; column name for groupby function
@@ -365,10 +373,14 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
     train['source'] = 'train'
     test = test_df.copy()
     test['source'] = 'test'
-    df = pd.concat([train, test])
+    df = pd.concat([train, test]).reset_index(drop=True)
     new_features = [ 'future_count_gr{}_{}'.format(by, i) for i in days_list ]
-    # df['created'] = pd.to_datetime(df["created"])
-    for gr_name, df_group in df.groupby(by):
+    df['created'] = pd.to_datetime(df["created"])
+    print(df['created'])
+    if price_mode:
+        df['price_quantiles'] = pd.qcut(df['price'], 5, labels=False)
+    for gr_name, df_group in df.copy().groupby(by):
+        last_date = df_group['created'].max().date()
         idx_group = df_group.index
         ref_days = df_group.groupby(df_group['created'].dt.date)['created'].count()
 
@@ -380,27 +392,61 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True):
 
         for n_days in days_list:
             new_feature = 'future_count_gr{}_{}'.format(by, n_days)
-            df.ix[idx_group, new_feature] = df_group['created'].apply(get_count, n_days=n_days)
+            df.loc[idx_group, new_feature] = df_group['created'].apply(get_count, n_days=n_days)
+            print(df.loc[idx_group, new_feature])
 
-        # replace last incomplete dates with means
-        if positive:
-            last_date = df_group['created'].max().date()
-            first_bad_date = last_date - dt.timedelta(days=n_days-2)
-            last_good_day = last_date - dt.timedelta(days=n_days-1)
-            df_sub = df.ix[idx_group]
-            mask = (df_sub['created'] > first_bad_date) & (df_sub['created'] < last_date+dt.timedelta(days=1))
-            idx_group_rewrite = idx_group[mask]
-            df.loc[idx_group_rewrite, new_features] = df_sub[new_features].mean().values
+            # replace last incomplete dates with means
+            if positive:
+                first_bad_date = last_date - dt.timedelta(days=n_days-2)
+                last_good_day = last_date - dt.timedelta(days=n_days-1)
+                df_sub = df.loc[idx_group]
+                mask = (df_sub['created'] > first_bad_date) & (df_sub['created'] < last_date+dt.timedelta(days=1))
+                idx_group_rewrite = idx_group[mask]
+                df.loc[idx_group_rewrite, new_feature] = df_sub[new_feature].mean()
 
     train_df[new_features] = df[df['source'] == 'train'][new_features]
     test_df[new_features] = df[df['source'] == 'test'][new_features]
+    print('nans in train: ', train_df[new_features].isnull().any().any())
+    print('nans in test: ', test_df[new_features].isnull().any().any())
     return train_df, test_df
 
 
+def add_leakage(df, leak_file):
+    # add leak from pictures
+    image_date = pd.read_csv(leak_file)
+
+    # rename columns so you can join tables later on
+    image_date.columns = ["listing_id", "time_stamp"]
+
+    # reassign the only one timestamp from April, all others from Oct/Nov
+    image_date.loc[80240,"time_stamp"] = 1478129766 
+
+    image_date["img_date"]                  = pd.to_datetime(image_date["time_stamp"], unit="s")
+    image_date["img_days_passed"]           = (image_date["img_date"].max() - image_date["img_date"]).astype("timedelta64[D]").astype(int)
+    image_date["img_date_month"]            = image_date["img_date"].dt.month
+    image_date["img_date_week"]             = image_date["img_date"].dt.week
+    image_date["img_date_day"]              = image_date["img_date"].dt.day
+    image_date["img_date_dayofweek"]        = image_date["img_date"].dt.dayofweek
+    image_date["img_date_dayofyear"]        = image_date["img_date"].dt.dayofyear
+    image_date["img_date_hour"]             = image_date["img_date"].dt.hour
+    image_date["img_date_monthBeginMidEnd"] = image_date["img_date_day"].apply(lambda x: 1 if x<10 else 2 if x<20 else 3)
+    del image_date["img_date"]
+    # print(image_date)
+    # print(df.columns)
+    # print(df)
+
+    df = pd.merge(df, image_date, on="listing_id", how="left")
+    # print(df.columns)
+    # print(df)
+    return df
 
 # Load data
 X_train = pd.read_json("../input/train.json").sort_values(by="listing_id")
 X_test = pd.read_json("../input/test.json").sort_values(by="listing_id")
+leak_file = "../input/listing_image_time.csv"
+
+X_train = add_leakage(X_train, leak_file)
+X_test = add_leakage(X_test, leak_file)
 
 # add manager skill
 # X_train, X_test = add_manager_skill(X_train, X_test) # not good; big leakage
@@ -420,7 +466,11 @@ prior_0, prior_1, prior_2 = X_train[["pred_0", "pred_1", "pred_2"]].mean()
 X_train = add_features(X_train)
 X_test = add_features(X_test)
 # future density
-X_train, X_test = add_future_count(X_train, X_test, [1,4,8])
+X_train, X_test = add_future_count(X_train, X_test, [1])
+# X_train, X_test = add_future_count(X_train, X_test, [-2], positive=False)
+X_train, X_test = add_future_count_groupedby('bedrooms', X_train, X_test, [1])
+X_train, X_test = add_future_count_groupedby('price_quantiles', X_train, X_test, [1], price_mode=True)
+
 
 # Special designation for building_ids, manager_ids, display_address with only 1 observation
 for col in ('building_id', 'manager_id', 'display_address'):
@@ -460,11 +510,11 @@ X_test = X_test.join(pd.DataFrame(data=mlb.transform(X_test["features"].apply(fl
 
 # Save
 
-X_train = X_train.sort_index(axis=1).sort_values(by="listing_id")
-X_test = X_test.sort_index(axis=1).sort_values(by="listing_id")
-columns_to_drop = ["photos", "pred_0","pred_1", "pred_2", "description", "features", "created"]
-X_train.drop([c for c in X_train.columns if c in columns_to_drop], axis=1).\
-    to_csv("../data_prepared/train_ManStatsListFC.csv", index=False, encoding='utf-8')
-X_test.drop([c for c in X_test.columns if c in columns_to_drop], axis=1).\
-    to_csv("../data_prepared/test_ManStatsListFC.csv", index=False, encoding='utf-8')
- 
+##X_train = X_train.sort_index(axis=1).sort_values(by="listing_id")
+##X_test = X_test.sort_index(axis=1).sort_values(by="listing_id")
+##columns_to_drop = ["photos", "pred_0","pred_1", "pred_2", "description", "features", "created"]
+##X_train.drop([c for c in X_train.columns if c in columns_to_drop], axis=1).\
+## to_csv("../data_prepared/train_ManStatsListFCFQ_leak.csv", index=False, encoding='utf-8')
+##X_test.drop([c for c in X_test.columns if c in columns_to_drop], axis=1).\
+## to_csv("../data_prepared/test_ManStatsListFCFQ_leak.csv", index=False, encoding='utf-8')
+
