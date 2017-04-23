@@ -19,7 +19,7 @@ import pickle
 
 
 
-with open('data4stack/data_perpared_all3.pickle', 'rb') as handle:
+with open('data4stack/data_perpared_wleak.pickle', 'rb') as handle:
     sets_prepared = pickle.load(handle)
 
 
@@ -136,14 +136,13 @@ xgb_params2 = {
 xgb_params3 = {
     'objective': 'multi:softprob',
     'eta':0.02,
-    'max_depth':4,
+    'max_depth':5,
     'num_class':3,
     'eval_metric':"mlogloss",
     'min_child_weight': 1,
     'subsample': 0.7,
     'colsample_bytree': 0.9,
-    'nrounds': 1600,
-    'silent':1
+    'nrounds': 1600
 }
 
 xgb_params4 = {
@@ -155,7 +154,7 @@ xgb_params4 = {
     'min_child_weight': 1,
     'subsample': 0.7,
     'colsample_bytree': 0.9,
-    'nrounds': 1500,
+    'nrounds': 600,
     'silent':1
 }
 
@@ -169,6 +168,19 @@ xgb_params5 = {
     'min_child_weight': 1,
     'subsample': 0.8,
     'colsample_bytree': 0.8,
+    'nrounds': 1500
+}
+
+
+xgb_params6 = {
+    'objective': 'multi:softprob',
+    'eta':0.02,
+    'max_depth':6,
+    'num_class':3,
+    'eval_metric':"mlogloss",
+    'min_child_weight': 1,
+    'subsample': 0.8,
+    'colsample_bytree': 0.9,
     'nrounds': 1500,
     'silent':1
 }
@@ -191,6 +203,7 @@ man_stats = []
 street_adress = []
 future_count = []
 future_count_gr = []
+leakage = []
 for i in X_train.columns:
     print(i)
     if i.startswith('top'):
@@ -209,9 +222,16 @@ for i in X_train.columns:
         future_count_gr.append(i)
     elif i.startswith('future_count_'):
         future_count.append(i)
+    elif i.startswith('img_date') or i.startswith('time_stamp') or i.startswith('img_days'):
+        leakage.append(i)
     else:
         pass
 
+
+hcc = []
+for i in X_train.columns:
+    if 'medium' in i or 'high' in i:
+        hcc.append(i)
 
 xg = XgbWrapper(seed=SEED, params=xgb_params)
 # et = SklearnWrapper(clf=ExtraTreesClassifier, seed=SEED, params=et_params)
@@ -219,6 +239,7 @@ xg2 = XgbWrapper(seed=SEED, params=xgb_params2)
 xg3 = XgbWrapper(seed=SEED, params=xgb_params3)
 xg4 = XgbWrapper(seed=SEED, params=xgb_params4)
 xg5 = XgbWrapper(seed=SEED, params=xgb_params5)
+xg6 = XgbWrapper(seed=SEED, params=xgb_params6)
 # rf = SklearnWrapper(clf=RandomForestClassifier, seed=SEED, params=rf_params)
 
 # xg_oof_train, xg_oof_test = get_oof(xg, x_train, y_train, x_test)
@@ -232,14 +253,18 @@ features1 = [ i for i in X_train.columns if i not in display_address_level+build
 features2 = [ i for i in X_train.columns if i not in manager_level+man_stats+top_mans_build+future_count_gr+future_count]
 # features3 = [ i for i in X_train.columns if i not in manager_level+display_address_level+building_level+top_mans_build+street_adress]
 features4 = [ i for i in X_train.columns if i not in manager_level+display_address_level+building_level+top_mans_build+street_adress]
-# features5 = [ i for i in X_train.columns if i not in manager_level+display_address_level+building_level+top_mans_build+street_adress]
+features5 = [ i for i in X_train.columns if i not in leakage]
+features6 = [ i for i in X_train.columns if i not in hcc]
+
 
 xg_oof_train, xg_oof_test = get_oof(xg, X_train[features1].values, y_train, X_test[features1].values)
 # et_oof_train, et_oof_test = get_oof(et, x_train, y_train, x_test)
 xg2_oof_train, xg2_oof_test = get_oof(xg2, X_train[features2].values, y_train, X_test[features2].values)
 xg3_oof_train, xg3_oof_test = get_oof(xg3, x_train, y_train, x_test)
 xg4_oof_train, xg4_oof_test = get_oof(xg4, X_train[features4].values, y_train, X_test[features4].values)
-xg5_oof_train, xg5_oof_test = get_oof(xg5, X_train.values, y_train, X_test.values)
+xg5_oof_train, xg5_oof_test = get_oof(xg5, X_train[features5].values, y_train, X_test[features5].values)
+xg6_oof_train, xg6_oof_test = get_oof(xg6, X_train[features6].values, y_train, X_test[features6].values)
+
 
 
 print("XG-CV: {}".format(log_loss(y_train, xg_oof_train)))
@@ -249,10 +274,15 @@ print("XG2-CV: {}".format(log_loss(y_train, xg2_oof_train)))
 print("XG3-CV: {}".format(log_loss(y_train, xg3_oof_train)))
 print("XG4-CV: {}".format(log_loss(y_train, xg4_oof_train)))
 print("XG5-CV: {}".format(log_loss(y_train, xg5_oof_train)))
+print("XG6-CV: {}".format(log_loss(y_train, xg6_oof_train)))
 
 
-x_train = np.concatenate((xg_oof_train, xg2_oof_train, xg3_oof_train, xg4_oof_train, xg5_oof_train), axis=1)
-x_test = np.concatenate((xg_oof_test, xg2_oof_test, xg3_oof_test, xg4_oof_test, xg5_oof_test), axis=1)
+
+x_train = np.concatenate((xg_oof_train, xg2_oof_train, xg3_oof_train, xg4_oof_train, xg5_oof_train, xg6_oof_train), axis=1)
+x_test = np.concatenate((xg_oof_test, xg2_oof_test, xg3_oof_test, xg4_oof_test, xg5_oof_test, xg6_oof_test), axis=1)
+
+with open('data4stack/data_level2.pickle', 'wb') as handle:
+    pickle.dump([x_train, x_test], handle)
 
 print("{},{}".format(x_train.shape, x_test.shape))
 
@@ -270,7 +300,7 @@ xgb_params = {
     'colsample_bytree': 0.7
 }
 
-res = xgb.cv(xgb_params, dtrain, num_boost_round=50, nfold=5, seed=SEED,
+res = xgb.cv(xgb_params, dtrain, num_boost_round=300, nfold=5, seed=SEED,
              early_stopping_rounds=10, show_stdv=True)
 
 best_nrounds = res.shape[0] - 1
@@ -284,4 +314,4 @@ gbdt = xgb.train(xgb_params, dtrain, best_nrounds)
 out_df = pd.DataFrame(gbdt.predict(dtest))
 out_df.columns = ["low", "medium", "high"]
 out_df["listing_id"] = X_test.listing_id.values
-out_df.to_csv('../sub/stacker2_starter6.csv', index=False)
+out_df.to_csv('../sub/stacker2_starter7.csv', index=False)

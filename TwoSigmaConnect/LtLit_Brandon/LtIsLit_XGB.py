@@ -50,14 +50,15 @@ def add_leakage(df, leak_file):
 
     image_date["img_date"]                  = pd.to_datetime(image_date["time_stamp"], unit="s")
     image_date["img_days_passed"]           = (image_date["img_date"].max() - image_date["img_date"]).astype("timedelta64[D]").astype(int)
-    image_date["img_date_month"]            = image_date["img_date"].dt.month
-    image_date["img_date_week"]             = image_date["img_date"].dt.week
-    image_date["img_date_day"]              = image_date["img_date"].dt.day
-    image_date["img_date_dayofweek"]        = image_date["img_date"].dt.dayofweek
-    image_date["img_date_dayofyear"]        = image_date["img_date"].dt.dayofyear
-    image_date["img_date_hour"]             = image_date["img_date"].dt.hour
-    image_date["img_date_monthBeginMidEnd"] = image_date["img_date_day"].apply(lambda x: 1 if x<10 else 2 if x<20 else 3)
+    # image_date["img_date_month"]            = image_date["img_date"].dt.month
+    # image_date["img_date_week"]             = image_date["img_date"].dt.week
+    # image_date["img_date_day"]              = image_date["img_date"].dt.day
+    # image_date["img_date_dayofweek"]        = image_date["img_date"].dt.dayofweek
+    # image_date["img_date_dayofyear"]        = image_date["img_date"].dt.dayofyear
+    # image_date["img_date_hour"]             = image_date["img_date"].dt.hour
+    # image_date["img_date_monthBeginMidEnd"] = image_date["img_date_day"].apply(lambda x: 1 if x<10 else 2 if x<20 else 3)
     del image_date["img_date"]
+    del image_date["time_stamp"]
 
     df = pd.merge(df, image_date, on="listing_id", how="left")
     return df
@@ -632,7 +633,7 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True, 
     train['source'] = 'train'
     test = test_df.copy()
     test['source'] = 'test'
-    df = pd.concat([train, test])
+    df = pd.concat([train, test]).reset_index()
     new_features = [ 'future_count_gr{}_{}'.format(by, i) for i in days_list ]
     df['created'] = pd.to_datetime(df["created"])
     if price_mode:
@@ -661,8 +662,8 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True, 
                 idx_group_rewrite = idx_group[mask]
                 df.loc[idx_group_rewrite, new_feature] = df_sub[new_feature].mean()
 
-    train_df[new_features] = df[df['source'] == 'train'][new_features]
-    test_df[new_features] = df[df['source'] == 'test'][new_features]
+    train_df[new_features] = df[df['source'] == 'train'].set_index('index')[new_features]
+    test_df[new_features] = df[df['source'] == 'test'].set_index('index')[new_features]
     print('nans in train: ', train_df[new_features].isnull().any().any())
     print('nans in test: ', test_df[new_features].isnull().any().any())
     return train_df, test_df
@@ -671,7 +672,7 @@ print("Starting transformations")
 
 # X_train, X_test = add_percentils(X_train, X_test)
 
-# # counts of flats for n_days from current day to the future
+# # # counts of flats for n_days from current day to the future
 X_train, X_test = add_future_count(X_train, X_test, [1,4,8])
 X_train, X_test = add_future_count(X_train, X_test, [-2], positive=False)
 X_train, X_test = add_future_count_groupedby('bedrooms', X_train, X_test, [1,3])
@@ -687,15 +688,15 @@ normalize_high_cordiality_data()
 transform_categorical_data()
 
 X_train, X_test = add_manager_level_weaker_leakage(X_train, X_test)
-# X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
-# X_train, X_test = add_adress_level_weaker_leakage(X_train, X_test)
-# X_train, X_test = add_street_adress_level_weaker_leakage(X_train, X_test)
+X_train, X_test = add_builing_level_weaker_leakage(X_train, X_test)
+X_train, X_test = add_adress_level_weaker_leakage(X_train, X_test)
+X_train, X_test = add_street_adress_level_weaker_leakage(X_train, X_test)
 X_train, X_test = add_stats_for_manager('price', X_train, X_test, funcs=['sum', 'mean', 'median', 'count'])
 X_train, X_test = add_stats_for_manager('bedrooms', X_train, X_test)
 X_train, X_test = add_stats_for_manager('bathrooms', X_train, X_test)
 X_train, X_test = add_stats_for_manager('price_per_room', X_train, X_test)
 # X_train, X_test = add_stats_for_manager('bedBathSum', X_train, X_test)
-# X_train, X_test = add_stats_for_manager('listing_id', X_train, X_test, funcs=['mean', 'median'])
+X_train, X_test = add_stats_for_manager('listing_id', X_train, X_test, funcs=['mean', 'median'])
 
 X_train = add_leakage(X_train, leak_file)
 X_test = add_leakage(X_test, leak_file)
@@ -748,8 +749,8 @@ test_X = X_test.values
 NFOLDS = 5
 
 params = {
-    'eta':.1,
-    'colsample_bytree':1,
+    'eta':.02,
+    'colsample_bytree':0.8,
     'subsample':.8,
     'seed':444,
     'max_depth':6,
@@ -772,4 +773,4 @@ preds = pd.DataFrame(preds)
 cols = ['low', 'medium', 'high']
 preds.columns = cols
 preds['listing_id'] = X_test.listing_id.values
-preds.to_csv('../sub/LtIsLit_XGB_brandon26.csv', index=None)
+preds.to_csv('../sub/LtIsLit_XGB_brandon32.csv', index=None)

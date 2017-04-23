@@ -45,7 +45,7 @@ glob_path = "../sub/*.csv"
 comp_correlation(glob_path)
 
 # choosen submissions to average
-subs = ['sub51.csv', 'LtIsLit_XGB_brandon7.csv', 'stacker2_starter6.csv']
+subs = ['sub51.csv', 'LtIsLit_XGB_brandon30.csv', 'stacker2_starter6.csv']
 df_ensembled = AVG_subs(glob_path, subs)
 # print(df_ensembled)
-# df_ensembled.to_csv('../sub/AVGedSubs_sub51_brand7_stack6.csv', index=True)
+df_ensembled.to_csv('../sub/AVGedSubs_sub51_brand30_stack6.csv', index=True)
