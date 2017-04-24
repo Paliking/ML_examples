@@ -141,6 +141,7 @@ def transform_data(X):
     #add features    
     feat_sparse = feature_transform.transform(X["features"])
     vocabulary = feature_transform.vocabulary_
+    X['vykricnik'] = X['features'].apply(lambda x: x.count('!'))
     del X['features']
     X1 = pd.DataFrame([ pd.Series(feat_sparse[i].toarray().ravel()) for i in np.arange(feat_sparse.shape[0]) ])
     X1.columns = list(sorted(vocabulary.keys()))
@@ -670,7 +671,7 @@ def add_future_count_groupedby(by, train_df, test_df, days_list, positive=True, 
 
 print("Starting transformations")
 
-# X_train, X_test = add_percentils(X_train, X_test)
+X_train, X_test = add_percentils(X_train, X_test)
 
 # # # counts of flats for n_days from current day to the future
 X_train, X_test = add_future_count(X_train, X_test, [1,4,8])
@@ -752,7 +753,7 @@ params = {
     'eta':.02,
     'colsample_bytree':0.8,
     'subsample':.8,
-    'seed':444,
+    'seed':222,
     'max_depth':6,
     'objective':'multi:softprob',
     'eval_metric':'mlogloss',
@@ -773,4 +774,4 @@ preds = pd.DataFrame(preds)
 cols = ['low', 'medium', 'high']
 preds.columns = cols
 preds['listing_id'] = X_test.listing_id.values
-preds.to_csv('../sub/LtIsLit_XGB_brandon32.csv', index=None)
+preds.to_csv('../sub/LtIsLit_XGB_brandon33.csv', index=None)
