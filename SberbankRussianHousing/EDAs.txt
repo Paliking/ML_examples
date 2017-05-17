@@ -1,0 +1,5 @@
+cool EDAs
+
+https://www.kaggle.com/sudalairajkumar/simple-exploration-notebook-sberbank
+
+https://www.kaggle.com/agzamovr/a-very-extensive-exploratory-analysis-in-python
