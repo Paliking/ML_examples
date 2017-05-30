@@ -66,8 +66,33 @@ macro = pd.read_csv('../inputs/macro.csv', parse_dates=['timestamp'])
 id_test = test.id
 
 
-# celan data
-train.iloc[1610, 'full_sq'] = 35
+# # clean data
+# train.ix[1610, 'full_sq'] = 35
+# train.ix[3527, 'full_sq'] = np.nan
+# train.ix[13546, 'life_sq'] = np.nan
+# train.ix[9646, 'life_sq'] = 82
+
+# # test data
+# # full --> life
+# for i in [464, 5383]:
+#     test.ix[i, 'full_sq'] = test.ix[i, 'life_sq']
+    
+# # life --> full
+# for i in [601, 1896, 2791, 2031, 5187]:
+#     test.ix[i, 'life_sq'] = test.ix[i, 'full_sq']
+
+# # if small full_sq replace it with life_sq. If both small, put nans for both
+# mask_toosmall = test['full_sq'] < 10
+# test.ix[mask_toosmall, 'full_sq'] = test.ix[mask_toosmall, 'life_sq']
+# mask_toosmall = test['full_sq'] < 10
+# test.ix[mask_toosmall, 'full_sq'] = np.nan
+# test.ix[mask_toosmall, 'life_sq'] = np.nan
+
+# test.ix[test['life_sq'] < 10, 'life_sq'] = np.nan
+
+
+
+
 
 # sposob ako vyrovnat score z CV a z LB
 # https://www.kaggle.com/c/sberbank-russian-housing-market/discussion/32717
@@ -128,13 +153,13 @@ df_all['month_year_cnt'] = month_year.map(month_year_cnt_map)
 # Add tiem features
 df_all['month'] = df_all.timestamp.dt.month
 df_all["week_of_year"] = df_all["timestamp"].dt.weekofyear
-df_all['dow'] = df_all.timestamp.dt.dayofweek
+# df_all['dow'] = df_all.timestamp.dt.dayofweek
 
 # Other feature engineering
 # df_all['rel_floor'] = df_all['floor'] / df_all['max_floor'].astype(float)
 # df_all['rel_kitch_sq'] = df_all['kitch_sq'] / df_all['full_sq'].astype(float)
 # df_all['balcony'] = df_all['full_sq'] - df_all['life_sq']
-df_all['room_sq'] = (df_all['life_sq'] - df_all['kitch_sq']) / df_all['num_room']
+# df_all['room_sq'] = (df_all['life_sq'] - df_all['kitch_sq']) / df_all['num_room']
 
 # encode ecology with logical order
 ecology_map = {'poor': 1, 'satisfactory': 2, 'good': 3, 'excellent': 4, 'no data': np.NaN}
@@ -196,4 +221,4 @@ else:
 
 output = pd.DataFrame({'id': id_test, 'price_doc': y_pred})
 
-# output.to_csv('../subs/xgb_log_1315.csv', index=False)
+# output.to_csv('../subs/xgb_log_cln.csv', index=False)
