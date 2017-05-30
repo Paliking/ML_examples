@@ -66,6 +66,9 @@ macro = pd.read_csv('../inputs/macro.csv', parse_dates=['timestamp'])
 id_test = test.id
 
 
+# celan data
+train.iloc[1610, 'full_sq'] = 35
+
 # sposob ako vyrovnat score z CV a z LB
 # https://www.kaggle.com/c/sberbank-russian-housing-market/discussion/32717
 # undersample trainset 10, 3 and 2 times based on price_doc and product_type
