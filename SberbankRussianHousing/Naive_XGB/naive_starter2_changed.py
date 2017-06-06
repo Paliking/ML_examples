@@ -66,29 +66,48 @@ macro = pd.read_csv('../inputs/macro.csv', parse_dates=['timestamp'])
 id_test = test.id
 
 
-# # clean data
-# train.ix[1610, 'full_sq'] = 35
-# train.ix[3527, 'full_sq'] = np.nan
-# train.ix[13546, 'life_sq'] = np.nan
-# train.ix[9646, 'life_sq'] = 82
+# clean data
+train.ix[1610, 'full_sq'] = 35
+train.ix[3527, 'full_sq'] = np.nan
+train.ix[13546, 'life_sq'] = np.nan
+train.ix[9646, 'life_sq'] = 82
 
-# # test data
-# # full --> life
-# for i in [464, 5383]:
-#     test.ix[i, 'full_sq'] = test.ix[i, 'life_sq']
+lefttail_idx = train[(train['life_sq'] > 140) & (train['full_sq']<110)].index
+train.ix[lefttail_idx, 'life_sq'] = np.nan
+rigttail_idx = train[(train['life_sq'] < 100) & (train['full_sq']>250)].index
+train.ix[rigttail_idx, 'full_sq'] = np.nan
+train.ix[[128, 22785, 27793], ['life_sq', 'full_sq']] = np.nan
+small_life = train[(train['life_sq'] < 10) & (train['full_sq']>0)].index
+train.ix[small_life, 'life_sq'] = np.nan
+small_full = train[(train['full_sq'] < 10) & (train['life_sq']>0)].index
+train.ix[small_full, 'full_sq'] = np.nan
+small_all = train[(train['full_sq'] < 10)].index
+train.ix[small_all, ['full_sq', 'life_sq']] = np.nan
+too_big = train[(train['full_sq'] > 330)].index
+train.ix[too_big, 'full_sq'] = np.nan
+
+# test data
+# full --> nan
+for i in [464, 5383]:
+    test.ix[i, 'full_sq'] = np.nan
     
-# # life --> full
-# for i in [601, 1896, 2791, 2031, 5187]:
-#     test.ix[i, 'life_sq'] = test.ix[i, 'full_sq']
+# life --> full
+for i in [601, 1896, 2791]:
+    test.ix[i, 'life_sq'] = test.ix[i, 'full_sq']
 
-# # if small full_sq replace it with life_sq. If both small, put nans for both
-# mask_toosmall = test['full_sq'] < 10
-# test.ix[mask_toosmall, 'full_sq'] = test.ix[mask_toosmall, 'life_sq']
-# mask_toosmall = test['full_sq'] < 10
-# test.ix[mask_toosmall, 'full_sq'] = np.nan
-# test.ix[mask_toosmall, 'life_sq'] = np.nan
+# life --> nan   
+for i in [2031, 5187]:
+    test.ix[i, 'life_sq'] = np.nan
 
-# test.ix[test['life_sq'] < 10, 'life_sq'] = np.nan
+
+# if small full_sq replace it with life_sq. If both small, put nans for both
+small_life = test[(test['life_sq'] < 10)].index
+test.ix[small_life, 'life_sq'] = np.nan
+
+mask_toosmall = test['full_sq'] < 10
+test.ix[mask_toosmall, 'full_sq'] = np.nan
+
+
 
 
 
@@ -152,7 +171,7 @@ df_all['month_year_cnt'] = month_year.map(month_year_cnt_map)
 
 # Add tiem features
 df_all['month'] = df_all.timestamp.dt.month
-df_all["week_of_year"] = df_all["timestamp"].dt.weekofyear
+# df_all["week_of_year"] = df_all["timestamp"].dt.weekofyear
 # df_all['dow'] = df_all.timestamp.dt.dayofweek
 
 # Other feature engineering
@@ -221,4 +240,4 @@ else:
 
 output = pd.DataFrame({'id': id_test, 'price_doc': y_pred})
 
-# output.to_csv('../subs/xgb_log_cln.csv', index=False)
+output.to_csv('../subs/xgb_log_cln2.csv', index=False)
