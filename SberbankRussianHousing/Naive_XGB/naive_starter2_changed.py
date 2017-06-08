@@ -106,8 +106,24 @@ test.ix[small_life, 'life_sq'] = np.nan
 
 mask_toosmall = test['full_sq'] < 10
 test.ix[mask_toosmall, 'full_sq'] = np.nan
+test.ix[6350, 'full_sq'] = np.nan
+test.ix[4634, 'full_sq'] = np.nan
 
+# # floors
+# bad_maxfloor = test[(test['max_floor'] < test['floor'])].index
+# test.ix[bad_maxfloor, 'max_floor'] = np.nan
 
+# bad_maxfloor = train[(train['max_floor'] < train['floor'])].index
+# train.ix[bad_maxfloor, 'max_floor'] = np.nan
+
+# kitchen
+# kitch_sq as build_year and build_year is missing
+train.ix[13117, 'build_year'] = 1970
+# put nan to kitch_sq if it is bigger then full_sq
+bad_k1 = test[test['kitch_sq'] >= test['full_sq']].index
+bad_k2 = train[train['kitch_sq'] >= train['full_sq']].index
+test.ix[bad_k1, 'kitch_sq'] = np.nan
+train.ix[bad_k2, 'kitch_sq'] = np.nan
 
 
 
@@ -135,6 +151,7 @@ for ind, gap in zip([ind_1m, ind_2m, ind_3m], [10, 3, 2]):
 train = train.loc[train_index]
 
 
+# train = train[train['price_doc'] > 1000000]
 
 
 # # other option is to drop all <=1M investment rows (look worse ?)
@@ -240,4 +257,4 @@ else:
 
 output = pd.DataFrame({'id': id_test, 'price_doc': y_pred})
 
-output.to_csv('../subs/xgb_log_cln2.csv', index=False)
+output.to_csv('../subs/xgb_log_cln7.csv', index=False)
